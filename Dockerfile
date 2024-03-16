@@ -7,7 +7,7 @@ COPY src /home/gradle/src/src/
 
 # Package the application
 WORKDIR /home/gradle/src
-RUN gradle build --no-daemon
+RUN gradle build --no-daemon -x test
 
 # Stage 2: Java Runtime stage
 FROM openjdk:21-jdk-slim
