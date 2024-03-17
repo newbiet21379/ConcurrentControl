@@ -9,8 +9,12 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class ShipmentService   {
+    private final ShipmentRepository shipmentRepository;
+
     @Autowired
-    private ShipmentRepository shipmentRepository;
+    public ShipmentService(ShipmentRepository shipmentRepository) {
+        this.shipmentRepository = shipmentRepository;
+    }
 
     public Shipment createShipment(String shipmentInfo, Order order, Driver driver) {
         Shipment shipment = new Shipment();

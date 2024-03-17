@@ -1,5 +1,6 @@
 package com.tim.transactioncase.model;
 
+import com.tim.transactioncase.common.ShipmentStatus;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -10,6 +11,8 @@ public class Shipment {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
     private String shipmentInfo;
+    @Enumerated(EnumType.STRING)
+    private ShipmentStatus status;
 
     @OneToOne
     private Order order;

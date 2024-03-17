@@ -1,5 +1,6 @@
 package com.tim.transactioncase.model;
 
+import com.tim.transactioncase.common.JobStatus;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -12,7 +13,8 @@ public class Job {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
     private String jobInfo;
-    private String status; // NEW: To capture status of the job
+    @Enumerated(EnumType.STRING)
+    private JobStatus status; // NEW: To capture status of the job
 
     @OneToMany
     private List<Order> orders;
