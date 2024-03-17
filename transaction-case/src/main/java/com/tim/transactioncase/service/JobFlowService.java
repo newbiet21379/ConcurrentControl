@@ -1,6 +1,7 @@
 package com.tim.transactioncase.service;
 
 import com.tim.transactioncase.common.JobStatus;
+import com.tim.transactioncase.common.ShipmentStatus;
 import com.tim.transactioncase.model.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,14 +29,13 @@ public class JobFlowService {
     }
 
     public Job createJobFlow(List<Order> orderList, Driver driver, List<String> detailInfos) {
-        List<Shipment> shipments = orderList.
-                stream().map(order ->
-                        shipmentService.createShipment("ShipmentInfo", order, driver))
+        List<Shipment> shipments = orderList.stream()
+                .map(order -> shipmentService.createShipment("ShipmentInfo", order, driver, ShipmentStatus.IN_TRANSIT))
                 .collect(Collectors.toList());
 
         Order order = orderService.createOrder("OrderInfo", detailInfos);
 
-        Shipment shipment = shipmentService.createShipment("ShipmentInfo", order, driver);
+        Shipment shipment = shipmentService.createShipment("ShipmentInfo", order, driver, ShipmentStatus.IN_TRANSIT);
         order.setShipment(shipment);
         orderService.save(order);
 
@@ -44,7 +44,7 @@ public class JobFlowService {
 
         shipments.add(shipment);
 
-        Job job = jobService.createJob("JobInfo", orders, "InProgress", shipments);
+        Job job = jobService.createJob("JobInfo", orders, JobStatus.IN_PROGRESS, shipments);
 
         driver.getJobs().add(job);
         driverService.save(driver);
@@ -52,13 +52,13 @@ public class JobFlowService {
         return job;
     }
 
-    public void updateJobStatus(Long jobId, String status) {
+    public void updateJobStatus(Long jobId, JobStatus status) {
         Job job = jobService.findJobById(jobId);
-        job.setStatus(JobStatus.valueOf(status));
+        job.setStatus(status);
 
-        if (status.equals("Finish")) {
+        if (status.equals(JobStatus.COMPLETED)) {
             for (Shipment shipment : job.getShipments()) {
-                shipmentService.updateShipmentInfo(shipment.getId(), "Delivered");
+                shipmentService.updateShipmentInfo(shipment.getId(), "Delivered", ShipmentStatus.DELIVERED);
             }
         }
 

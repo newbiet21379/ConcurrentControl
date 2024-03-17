@@ -1,5 +1,6 @@
 package com.tim.transactioncase.service;
 
+import com.tim.transactioncase.common.JobStatus;
 import com.tim.transactioncase.model.Job;
 import com.tim.transactioncase.model.Order;
 import com.tim.transactioncase.model.Shipment;
@@ -18,10 +19,11 @@ public class JobService {
     private JobRepository jobRepository;
 
     @Transactional
-    public Job createJob(String jobInfo, List<Order> orders, String shipmentInfo, List<Shipment> shipments) {
+    public Job createJob(String jobInfo, List<Order> orders, JobStatus status, List<Shipment> shipments) {
         Job job = new Job();
         job.setJobInfo(jobInfo);
         job.setOrders(orders);
+        job.setStatus(status);
         job.setShipments(shipments);
 
         return jobRepository.save(job);
