@@ -5,6 +5,7 @@ import lombok.Getter;
 @Getter
 public enum JobStatus {
     PENDING,
+    ASSIGNED,
     IN_PROGRESS,
     COMPLETED,
     FAILED

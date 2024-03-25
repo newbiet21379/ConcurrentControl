@@ -28,11 +28,11 @@ public class ShipmentService   {
     }
 
     // Update function based on shipmentId
-    public Shipment updateShipmentInfo(Long shipmentId, String shipmentInfo, ShipmentStatus status) {
+    public void updateShipmentInfo(Long shipmentId, String shipmentInfo, ShipmentStatus status) {
         Shipment shipment = shipmentRepository.findById(shipmentId).orElseThrow(RuntimeException::new);
         shipment.setShipmentInfo(shipmentInfo);
         shipment.setStatus(status);
 
-        return shipmentRepository.save(shipment);
+        shipmentRepository.save(shipment);
     }
 }

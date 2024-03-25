@@ -15,8 +15,12 @@ import java.util.Optional;
 @Service
 public class JobService {
 
+    private final JobRepository jobRepository;
+
     @Autowired
-    private JobRepository jobRepository;
+    public JobService(JobRepository jobRepository) {
+        this.jobRepository = jobRepository;
+    }
 
     @Transactional
     public Job createJob(String jobInfo, List<Order> orders, JobStatus status, List<Shipment> shipments) {
@@ -29,8 +33,12 @@ public class JobService {
         return jobRepository.save(job);
     }
 
-    public void save(Job job) {
-        jobRepository.save(job);
+    public Job save(Job job) {
+        return jobRepository.save(job);
+    }
+
+    public List<Job> findAllByStatus(JobStatus status ){
+        return jobRepository.findAllByStatusIn(List.of(status));
     }
 
     public Job findJobById(Long jobId) {

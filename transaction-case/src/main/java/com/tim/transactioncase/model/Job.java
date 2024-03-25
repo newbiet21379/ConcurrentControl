@@ -14,7 +14,10 @@ public class Job {
     private Long id;
     private String jobInfo;
     @Enumerated(EnumType.STRING)
-    private JobStatus status; // NEW: To capture status of the job
+    private JobStatus status;
+
+    @OneToOne
+    private Driver driver;
 
     @OneToMany
     private List<Order> orders;

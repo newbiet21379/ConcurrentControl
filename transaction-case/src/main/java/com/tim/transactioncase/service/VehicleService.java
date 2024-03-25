@@ -7,8 +7,12 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class VehicleService {
+    private final VehicleRepository vehicleRepository;
+
     @Autowired
-    private VehicleRepository vehicleRepository;
+    public VehicleService(VehicleRepository vehicleRepository) {
+        this.vehicleRepository = vehicleRepository;
+    }
 
     public Vehicle createVehicle(String model) {
         Vehicle vehicle = new Vehicle();
