@@ -1,0 +1,41 @@
+### Create a batch of drivers will fail
+POST http://localhost:8080/v2/drivers/batch
+Content-Type: application/json
+
+[
+  {
+    "name": "Driver 1",
+    "mobile": "091234567890"
+  },
+  {
+    "name": "Driver 2",
+    "mobile": "099876543210"
+  },
+  {
+    "name": "Driver 3",
+    "mobile": "091234567890"
+  }
+]
+
+### Create a batch of drivers will fail
+POST http://localhost:8080/v1/drivers/batch
+Content-Type: application/json
+
+[
+  {
+    "name": "Driver 1",
+    "mobile": "091234567890"
+  },
+  {
+    "name": "Driver 2",
+    "mobile": "099876543210"
+  },
+  {
+    "name": "Driver 3",
+    "mobile": "091234567890"
+  }
+]
+
+### Query all drivers
+GET http://localhost:8080/v1/drivers/list
+Content-Type: application/json

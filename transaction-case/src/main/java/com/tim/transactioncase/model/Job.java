@@ -16,7 +16,7 @@ public class Job {
     @Enumerated(EnumType.STRING)
     private JobStatus status;
 
-    @OneToOne
+    @OneToOne(cascade = CascadeType.ALL)
     private Driver driver;
 
     @OneToMany

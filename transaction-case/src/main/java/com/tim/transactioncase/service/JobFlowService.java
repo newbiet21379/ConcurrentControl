@@ -9,11 +9,11 @@ import java.util.List;
 
 public interface JobFlowService {
 
-    Job createJobFlow(List<Order> orderList, Driver driver, List<String> detailInfos);
+    Job createJobFlow(List<Order> orderList, Long driverId, List<String> detailInfos);
 
     void updateJobStatusNormalFlow(Long jobId, JobStatus status);
 
-    Job createJobFlowV2(List<Order> orderList, Driver driver, List<String> detailInfos);
+    Job createJobFlowV2(List<Order> orderList, Long driverId, List<String> detailInfos);
 
     void updateJobStatusV2(Long jobId, JobStatus status);
 

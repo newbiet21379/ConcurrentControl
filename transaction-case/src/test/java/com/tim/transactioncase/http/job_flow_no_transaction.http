@@ -1,0 +1,61 @@
+### Create a driver
+POST http://localhost:8080/api/drivers
+Content-Type: application/json
+
+{
+  "name": "Driver Name",
+  "mobile": "091234567890"
+}
+
+### Assign vehicle to a driver, Assume we got driverId: 1 from above response
+PUT http://localhost:8080/api/drivers/1/vehicle
+Content-Type: application/json
+
+{
+  "id": 1,
+  "model": "Vehicle Model"
+}
+
+### Fetch the driver details with the assigned vehicle
+GET http://localhost:8080/api/drivers/1
+Content-Type: application/json
+
+### Create Job Flow
+POST http://localhost:8080/v1/job/create
+Content-Type: application/json
+
+{
+  "orderList": [
+    {
+      "orderId": 1,
+      "product": "Product name",
+      "quantity": 10
+    }
+  ],
+  "driver": {
+    "driverId": 1,
+    "driverName": "Driver Name",
+    "jobs": []
+  },
+  "detailInfos": [
+    "detailInfos"
+  ]
+}
+
+### Assume we got jobId: 1 from above response
+### Call Update Job Status concurrently
+PUT http://localhost:8080/v1/job/update/1/COMPLETED
+
+### Assume we got shipmentId: 1 from first request's response
+### Call Update Shipment Info concurrently
+PUT http://localhost:8080/v1/shipments/1
+Content-Type: application/json
+
+{
+  "shipmentInfo": "UpdatedInfo",
+  "status": "DELIVERED"
+}
+
+### Finally, check the updated job is fetched with the latest Shipment status
+GET http://localhost:8080/v1/job/1
+Content-Type: application/json

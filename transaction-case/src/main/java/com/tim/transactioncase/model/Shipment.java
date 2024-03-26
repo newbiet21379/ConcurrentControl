@@ -14,7 +14,8 @@ public class Shipment {
     @Enumerated(EnumType.STRING)
     private ShipmentStatus status;
 
-    @OneToOne
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name="order_id", nullable=false)
     private Order order;
 
     @OneToOne
