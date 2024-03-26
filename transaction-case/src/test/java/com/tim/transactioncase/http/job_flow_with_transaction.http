@@ -38,6 +38,17 @@ Content-Type: application/json
   "name": "Driver Name"
 }
 
+### Assign Job To Another Driver
+POST http://localhost:8080/v2/job/assign/1
+Content-Type: application/json
+
+{
+  "vehicle": {
+    "model": "Mercedes"
+  },
+  "name": "Second Driver Name"
+}
+
 ### Assume we got jobId: 1 from previous responses
 ### Check the Job Fetch with a particular jobId
 GET http://localhost:8080/v2/job/1

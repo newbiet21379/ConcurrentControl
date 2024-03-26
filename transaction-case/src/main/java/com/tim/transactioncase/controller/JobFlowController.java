@@ -27,9 +27,9 @@ public class JobFlowController {
     @PostMapping("/create")
     public Job createJobFlow(@RequestBody CreateJobFlowRequest request, @PathVariable("version") String version) {
         if(version.equals("v2")){
-            return jobFlowServiceImpl.createJobFlowV2(request.getOrderList(), request.getDriver(), request.getDetailInfos());
+            return jobFlowServiceImpl.createJobFlowV2(request.getOrderList(), request.getDriverId(), request.getDetailInfos());
         }
-        return jobFlowServiceImpl.createJobFlow(request.getOrderList(), request.getDriver(), request.getDetailInfos());
+        return jobFlowServiceImpl.createJobFlow(request.getOrderList(), request.getDriverId(), request.getDetailInfos());
     }
 
     @PutMapping("/update/{id}/{status}")

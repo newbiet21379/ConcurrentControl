@@ -1,6 +1,7 @@
 package com.tim.transactioncase.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.util.List;
@@ -13,9 +14,13 @@ public class Driver {
     private Long id;
     private String name;
 
-    @OneToOne
+    @Column(unique = true)
+    @Size(min = 11, max = 11, message = "Mobile number must be exactly 11 characters long")
+    private String mobile;
+
+    @OneToOne(cascade = CascadeType.ALL)
     private Vehicle vehicle;
 
     @OneToMany(cascade = CascadeType.ALL)
-    private List<Job> jobs; // NEW: Driver can be assigned to multiple jobs.
+    private List<Job> jobs;
 }

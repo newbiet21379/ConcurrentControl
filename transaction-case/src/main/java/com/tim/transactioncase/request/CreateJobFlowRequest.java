@@ -13,6 +13,6 @@ import java.util.List;
 public class CreateJobFlowRequest implements Serializable {
 
     private List<Order> orderList;
-    private Driver driver;
+    private Long driverId;
     private List<String> detailInfos;
 }

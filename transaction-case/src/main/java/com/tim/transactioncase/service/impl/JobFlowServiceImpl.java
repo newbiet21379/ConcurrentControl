@@ -34,7 +34,13 @@ public class JobFlowServiceImpl implements JobFlowService {
         this.driverServiceImpl = driverServiceImpl;
     }
 
-    public Job createJobFlow(List<Order> orderList, Driver driver, List<String> detailInfos) {
+    public Job createJobFlow(List<Order> orderList, Long driverId, List<String> detailInfos) {
+        Driver driver = driverServiceImpl.findDriverById(driverId);
+
+        if (driver == null) {
+            throw new IllegalArgumentException("Driver does not exist with id :" + driverId);
+        }
+
         List<Shipment> shipments = orderList.stream()
                 .map(order -> shipmentServiceImpl.createShipment("ShipmentInfo", order, driver, ShipmentStatus.IN_TRANSIT))
                 .collect(Collectors.toList());
@@ -63,21 +69,32 @@ public class JobFlowServiceImpl implements JobFlowService {
 
     private void updateStatusJob(Long jobId, JobStatus status) {
         Job job = jobServiceImpl.findJobById(jobId);
-        job.setStatus(status);
+        // Prevent status change if it's already COMPLETED
+        if (!job.getStatus().equals(JobStatus.COMPLETED)) {
+            job.setStatus(status);
 
-        if (status.equals(JobStatus.COMPLETED)) {
-            if(!job.getShipments().isEmpty()) {
-                for (Shipment shipment : job.getShipments()) {
-                    shipmentServiceImpl.updateShipmentInfo(shipment.getId(), "Delivered", ShipmentStatus.DELIVERED);
+            if (status.equals(JobStatus.COMPLETED)) {
+                if (!job.getShipments().isEmpty()) {
+                    for (Shipment shipment : job.getShipments()) {
+                        shipmentServiceImpl.updateShipmentInfo(shipment.getId(), "Delivered", ShipmentStatus.DELIVERED);
+                    }
                 }
             }
-        }
 
-        jobServiceImpl.save(job);
+            jobServiceImpl.save(job);
+        } else {
+            throw new IllegalStateException("Cannot change status of a COMPLETED job");
+        }
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public Job createJobFlowV2(List<Order> orderList, Driver driver, List<String> detailInfos) {
+    public Job createJobFlowV2(List<Order> orderList, Long driverId, List<String> detailInfos) {
+        Driver driver = driverServiceImpl.findDriverById(driverId);
+
+        if (driver == null) {
+            throw new IllegalArgumentException("Driver does not exist with id :" + driverId);
+        }
+
         List<Shipment> shipments = orderList.stream()
                 .map(order -> {
                     orderServiceImpl.createOrder(order.getOrderInfo(), detailInfos);
@@ -104,8 +121,15 @@ public class JobFlowServiceImpl implements JobFlowService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Job assignJobToDriver(Long jobId, Driver driver) {
         Job job = jobServiceImpl.findJobById(jobId);
+
+        //Check if job status is COMPLETE before assigning to a driver
+        if (job.getStatus().equals(JobStatus.COMPLETED)) {
+            throw new IllegalStateException("Cannot assign a COMPLETED job");
+        }
+
         job.setDriver(driver);
         job.setStatus(JobStatus.ASSIGNED);
+
         return jobServiceImpl.save(job);
     }
 }
