@@ -2,10 +2,14 @@ package com.tim.transactioncase.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tim.transactioncase.common.JobStatus;
-import com.tim.transactioncase.model.*;
+import com.tim.transactioncase.model.Driver;
+import com.tim.transactioncase.model.Job;
+import com.tim.transactioncase.model.Order;
+import com.tim.transactioncase.model.Shipment;
 import com.tim.transactioncase.request.CreateJobFlowRequest;
 import com.tim.transactioncase.service.JobFlowService;
 import org.jetbrains.annotations.NotNull;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -23,6 +27,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -122,6 +127,19 @@ public class JobFlowControllerTest {
                 e.printStackTrace();
             }
         });
+    }
+
+    @Test
+    void shouldFindOpenJobs() {
+        // Arrange
+        List<Job> expectedJobs = new ArrayList<>();
+        given(jobFlowServiceImpl.findOpenJobs()).willReturn(expectedJobs);
+
+        // Act
+        List<Job> actualJobs = jobFlowController.findOpenJobs();
+
+        // Assert
+        Assertions.assertEquals(expectedJobs, actualJobs);
     }
 
     private String asJsonString(final Object obj) {

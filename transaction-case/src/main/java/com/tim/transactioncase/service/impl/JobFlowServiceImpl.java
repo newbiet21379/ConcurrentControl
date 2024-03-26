@@ -50,9 +50,10 @@ public class JobFlowServiceImpl implements JobFlowService {
         shipments.add(shipment);
 
         Job job = jobServiceImpl.createJob("JobInfo", orders, JobStatus.IN_PROGRESS, shipments);
-        driver.getJobs().add(job);
-        driverServiceImpl.save(driver);
-
+        if(!driver.getJobs().isEmpty()){
+            driver.getJobs().add(job);
+            driverServiceImpl.save(driver);
+        }
         return job;
     }
 
@@ -65,8 +66,10 @@ public class JobFlowServiceImpl implements JobFlowService {
         job.setStatus(status);
 
         if (status.equals(JobStatus.COMPLETED)) {
-            for (Shipment shipment : job.getShipments()) {
-                shipmentServiceImpl.updateShipmentInfo(shipment.getId(), "Delivered", ShipmentStatus.DELIVERED);
+            if(!job.getShipments().isEmpty()) {
+                for (Shipment shipment : job.getShipments()) {
+                    shipmentServiceImpl.updateShipmentInfo(shipment.getId(), "Delivered", ShipmentStatus.DELIVERED);
+                }
             }
         }
 
