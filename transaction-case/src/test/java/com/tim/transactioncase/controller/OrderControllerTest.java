@@ -1,10 +1,9 @@
 package com.tim.transactioncase.controller;
 
 import com.tim.transactioncase.model.Order;
-import com.tim.transactioncase.service.OrderService;
+import com.tim.transactioncase.service.impl.OrderServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -25,11 +24,11 @@ public class OrderControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private OrderService orderService;
+    private OrderServiceImpl orderServiceImpl;
 
     @Test
     void createOrderFlowTest() throws Exception {
-        when(orderService.createOrderFlow(anyString(), anyList())).thenReturn(new Order());
+        when(orderServiceImpl.createOrderFlow(anyString(), anyList())).thenReturn(new Order());
 
         mockMvc.perform(MockMvcRequestBuilders.post("/orders")
                         .param("orderInfo", "New Order")
@@ -38,18 +37,18 @@ public class OrderControllerTest {
                 .andExpect(status().isOk())
                 .andDo(MockMvcResultHandlers.print());
 
-        verify(orderService, times(1)).createOrderFlow(anyString(), anyList());
+        verify(orderServiceImpl, times(1)).createOrderFlow(anyString(), anyList());
     }
 
     @Test
     void updateOrderFlowTest() throws Exception {
-        doNothing().when(orderService).updateOrderFlow(anyLong(), anyString());
+        doNothing().when(orderServiceImpl).updateOrderFlow(anyLong(), anyString());
 
         mockMvc.perform(MockMvcRequestBuilders.put("/orders/1")
                         .param("newOrderInfo", "Updated Order"))
                 .andExpect(status().isOk())
                 .andDo(MockMvcResultHandlers.print());
 
-        verify(orderService, times(1)).updateOrderFlow(anyLong(), anyString());
+        verify(orderServiceImpl, times(1)).updateOrderFlow(anyLong(), anyString());
     }
 }

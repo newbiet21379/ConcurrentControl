@@ -1,9 +1,14 @@
+version: '3.8'
+
 services:
   postgres:
-    image: 'postgres:latest'
+    image: postgres:13.3-alpine
+    restart: always
     environment:
-      - 'POSTGRES_DB=mydatabase'
-      - 'POSTGRES_PASSWORD=secret'
-      - 'POSTGRES_USER=myuser'
+      POSTGRES_DB: mydatabase
+      POSTGRES_PASSWORD: secret # Docker secrets or environment variables are recommended for production
+      POSTGRES_USER: myuser
+    volumes:
+      - ./data/db:/var/lib/postgresql/data:Z  # Adjust this as per your specific directory structure
     ports:
-      - '5432'
+      - "5432:5432"  # This enables connections via localhost:5432

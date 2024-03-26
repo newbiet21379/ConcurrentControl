@@ -2,16 +2,15 @@ package com.tim.transactioncase.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tim.transactioncase.common.JobStatus;
-import com.tim.transactioncase.model.Driver;
-import com.tim.transactioncase.model.Job;
+import com.tim.transactioncase.model.*;
+import com.tim.transactioncase.request.CreateJobFlowRequest;
 import com.tim.transactioncase.service.JobFlowService;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -29,16 +28,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(JobFlowController.class)
-class JobFlowControllerTest {
+@SpringBootTest
+public class JobFlowControllerTest {
 
     @Mock
-    private JobFlowService jobFlowService;
-
+    private JobFlowService jobFlowServiceImpl;
     @InjectMocks
     private JobFlowController jobFlowController;
 
-    @Autowired
     private MockMvc mockMvc;
 
     @BeforeEach
@@ -49,6 +46,36 @@ class JobFlowControllerTest {
 
     @Test
     void createJobFlowTest() throws Exception {
+        Job result = generateJobTest();
+
+        String detailInfo = "detailInfo";
+
+        when(jobFlowServiceImpl.createJobFlow(any(), any(), any())).thenReturn(result);
+
+        //Act & Assert
+        mockMvc.perform(post("/job/create")
+                        .contentType("application/json")
+                        .content(asJsonString(new CreateJobFlowRequest(result.getOrders(), result.getDriver(), Collections.singletonList(detailInfo)))))
+                .andExpect(status().isOk());
+    }
+
+    @NotNull
+    private static Job generateJobTest() {
+        Job result = new Job();
+        Shipment shipment = new Shipment();
+        shipment.setId(1L);
+        // Set other properties of shipment here
+        List<Order> orderList = new ArrayList<>();
+        Order order1 = new Order();
+        order1.setOrderInfo("Order1");
+        order1.setShipment(shipment);
+        orderList.add(order1);
+
+        Order order2 = new Order();
+        order2.setOrderInfo("Order2");
+        order2.setShipment(shipment);
+        orderList.add(order2);
+
         //Arrange
         Job job = new Job();
         job.setId(1L);
@@ -57,20 +84,7 @@ class JobFlowControllerTest {
         Driver driver = new Driver();
         driver.setId(1L);
         driver.setName("Driver1");
-
-        List<String> orderList = new ArrayList<>();
-        orderList.add("Order1");
-        orderList.add("Order2");
-        String detailInfo = "Details Here";
-
-        when(jobFlowService.createJobFlow(any(), any(), any())).thenReturn(job);
-
-        //Act & Assert
-        mockMvc.perform(post("/job/create")
-                        .contentType("application/json")
-                        .content(asJsonString(new com.tim.transactioncase.controller.CreateJobFlowRequest(orderList, driver, Collections.singletonList(detailInfo)))))
-                .andDo(print())
-                .andExpect(status().isOk());
+        return result;
     }
 
     @Test
@@ -78,19 +92,17 @@ class JobFlowControllerTest {
         Driver driver = new Driver();
         driver.setId(1L);
 
-        Job job = new Job();
+        Job job = generateJobTest();
         job.setId(1L);
 
-        String orderList = "{\"orderList\": [\"order 1\", \"order 2\"], \"driver\": {\"id\": 1}, \"detailInfos\": [\"detail 1\", \"detail 2\"]}";
-
-        when(jobFlowService.createJobFlow(any(), any(), any())).thenReturn(job);
-        when(jobFlowService.assignJobToDriver(anyLong(), any())).thenReturn(job);
+        String detailInfo = "detailInfo";
+        when(jobFlowServiceImpl.createJobFlow(any(), any(), any())).thenReturn(job);
+        when(jobFlowServiceImpl.assignJobToDriver(anyLong(), any())).thenReturn(job);
 
         // Step 1: Create a new job
         mockMvc.perform(MockMvcRequestBuilders.post("/job/create")
                         .contentType("application/json")
-                        .content(orderList))
-                .andDo(print())
+                        .content(asJsonString(new CreateJobFlowRequest(job.getOrders(), job.getDriver(), Collections.singletonList(detailInfo)))))
                 .andExpect(status().isOk());
 
         // Step 2: Assign job to driver
