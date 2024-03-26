@@ -16,6 +16,6 @@ public class Driver {
     @OneToOne
     private Vehicle vehicle;
 
-    @OneToMany
+    @OneToMany(cascade = CascadeType.ALL)
     private List<Job> jobs; // NEW: Driver can be assigned to multiple jobs.
 }

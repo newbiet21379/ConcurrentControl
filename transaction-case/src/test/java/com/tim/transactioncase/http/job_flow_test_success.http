@@ -1,0 +1,39 @@
+### Create Job Flow
+POST http://localhost:8080/v2/job/create
+Content-Type: application/json
+
+{
+  "orderList": [
+    {
+      "orderId": 1,
+      "product": "Product name",
+      "quantity": 10
+    }
+  ],
+  "driver": {
+    "driverId": 1,
+    "driverName": "Driver Name",
+    "jobs": []
+  },
+  "detailInfos": [
+    "detailInfos"
+  ]
+}
+
+### Assume we got jobId: 1 from above response
+### Call Update Job Status concurrently
+PUT http://localhost:8080/v2/job/update/1/COMPLETED
+
+### Assume we got shipmentId: 1 from first request's response
+### Call Update Shipment Info concurrently
+PUT http://localhost:8080/v1/shipments/1
+Content-Type: application/json
+
+{
+  "shipmentInfo": "UpdatedInfo",
+  "status": "DELIVERED"
+}
+
+### Finally, check the updated job is fetched with the latest Shipment status
+GET http://localhost:8080/v2/job/1
+Content-Type: application/json

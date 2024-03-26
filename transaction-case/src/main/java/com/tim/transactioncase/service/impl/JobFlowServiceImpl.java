@@ -79,21 +79,13 @@ public class JobFlowServiceImpl implements JobFlowService {
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public Job createJobFlowV2(List<Order> orderList, Driver driver, List<String> detailInfos) {
         List<Shipment> shipments = orderList.stream()
-                .map(order -> shipmentServiceImpl.createShipment("ShipmentInfo", order, driver, ShipmentStatus.IN_TRANSIT))
+                .map(order -> {
+                    orderServiceImpl.createOrder(order.getOrderInfo(), detailInfos);
+                    return shipmentServiceImpl.createShipment("ShipmentInfo", order, driver, ShipmentStatus.IN_TRANSIT);
+                })
                 .collect(Collectors.toList());
 
-        Order order = orderServiceImpl.createOrder("OrderInfo", detailInfos);
-        Shipment shipment = shipmentServiceImpl.createShipment("ShipmentInfo", order, driver, ShipmentStatus.IN_TRANSIT);
-
-        order.setShipment(shipment);
-        orderServiceImpl.save(order);
-
-        List<Order> orders = new ArrayList<>(orderList);
-        orders.add(order);
-        shipments.add(shipment);
-
-        Job job = jobServiceImpl.createJob("JobInfo", orders, JobStatus.IN_PROGRESS, shipments);
-        driver.getJobs().add(job);
+        Job job = jobServiceImpl.createJob("JobInfo", orderList, JobStatus.IN_PROGRESS, shipments);
         driverServiceImpl.save(driver);
 
         return job;

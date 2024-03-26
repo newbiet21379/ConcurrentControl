@@ -1,0 +1,43 @@
+### Create Job Flow
+POST http://localhost:8080/v2/job/create
+Content-Type: application/json
+
+{
+  "orderList": [
+    {
+      "orderId": 1,
+      "product": "Product name",
+      "quantity": 10
+    }
+  ],
+  "driver": {
+    "driverId": 1,
+    "driverName": "Driver Name"
+  },
+  "detailInfos": [
+    "detailInfos"
+  ]
+}
+
+### Assume we got jobId: 1 from above response
+### Call Update Job Status using v2
+PUT http://localhost:8080/v2/job/update/1/COMPLETED
+
+### Find Open Jobs
+GET http://localhost:8080/v2/job/openJobs
+
+### Assume we got jobId: 1 from previous responses
+### Assign Job To Driver
+POST http://localhost:8080/v2/job/assign/1
+Content-Type: application/json
+
+{
+  "vehicle": {
+    "model": "Rolls"
+  },
+  "name": "Driver Name"
+}
+
+### Assume we got jobId: 1 from previous responses
+### Check the Job Fetch with a particular jobId
+GET http://localhost:8080/v2/job/1

@@ -67,7 +67,7 @@ public class JobFlowServiceImplTest {
     public void testCreateJobFlow() {
         Order order = new Order();
 
-        Job job = jobFlowServiceImpl.createJobFlow(Arrays.asList(order), driver, Arrays.asList("DetailInfo"));
+        Job job = jobFlowServiceImpl.createJobFlow(List.of(order), driver, List.of("DetailInfo"));
         verify(jobServiceImpl, times(1)).createJob(anyString(), anyList(), eq(JobStatus.IN_PROGRESS), anyList());
         assertEquals(job, jobServiceImpl.createJob("JobInfo", List.of(order), JobStatus.IN_PROGRESS, List.of(new Shipment())));
     }
@@ -98,7 +98,7 @@ public class JobFlowServiceImplTest {
         doThrow(runtimeException).when(jobServiceImpl).createJob(anyString(), anyList(), eq(JobStatus.IN_PROGRESS), anyList());
 
         // Act & Assert
-        assertThrows(RuntimeException.class, () -> jobFlowServiceImpl.createJobFlowV2(Arrays.asList(order), driver, Arrays.asList("DetailInfo")));
+        assertThrows(RuntimeException.class, () -> jobFlowServiceImpl.createJobFlowV2(List.of(order), driver, List.of("DetailInfo")));
         verify(jobServiceImpl, times(1)).createJob(anyString(), anyList(), eq(JobStatus.IN_PROGRESS), anyList());
     }
 
