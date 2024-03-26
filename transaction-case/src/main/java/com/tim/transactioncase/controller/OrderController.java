@@ -12,18 +12,22 @@ import java.util.List;
 @RequestMapping("/orders")
 public class OrderController {
 
+    private final OrderService orderServiceImpl;
+
     @Autowired
-    private OrderService orderService;
+    public OrderController(OrderService orderServiceImpl) {
+        this.orderServiceImpl = orderServiceImpl;
+    }
 
     @PostMapping
     public ResponseEntity<Order> createOrderFlow(@RequestParam String orderInfo, @RequestBody List<String> detailInfos) {
-        Order order = orderService.createOrderFlow(orderInfo, detailInfos);
+        Order order = orderServiceImpl.createOrderFlow(orderInfo, detailInfos);
         return ResponseEntity.ok(order);
     }
 
     @PutMapping("/{orderId}")
     public ResponseEntity<Void> updateOrderFlow(@PathVariable Long orderId, @RequestParam String newOrderInfo) {
-        orderService.updateOrderFlow(orderId, newOrderInfo);
+        orderServiceImpl.updateOrderFlow(orderId, newOrderInfo);
         return ResponseEntity.ok().build();
     }
 }

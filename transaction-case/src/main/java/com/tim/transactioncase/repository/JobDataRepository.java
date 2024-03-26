@@ -6,6 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
-public interface JobRepository extends JpaRepository<Job, Long> {
+public interface JobDataRepository extends JpaRepository<Job, Long> {
     List<Job> findAllByStatusIn(List<JobStatus> statuses);
 }

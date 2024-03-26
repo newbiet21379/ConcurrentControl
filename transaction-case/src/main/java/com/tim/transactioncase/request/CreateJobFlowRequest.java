@@ -1,7 +1,7 @@
-
-package com.tim.transactioncase.controller;
+package com.tim.transactioncase.request;
 
 import com.tim.transactioncase.model.Driver;
+import com.tim.transactioncase.model.Order;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -12,7 +12,7 @@ import java.util.List;
 @AllArgsConstructor
 public class CreateJobFlowRequest implements Serializable {
 
-    private List<String> orderList;
+    private List<Order> orderList;
     private Driver driver;
     private List<String> detailInfos;
 }

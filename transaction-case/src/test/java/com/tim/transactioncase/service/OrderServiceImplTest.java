@@ -1,6 +1,4 @@
 package com.tim.transactioncase.service;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 import com.tim.transactioncase.model.Order;
 import com.tim.transactioncase.repository.OrderRepository;
@@ -17,14 +15,17 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 @ExtendWith(MockitoExtension.class)
-public class OrderServiceTest {
+public class OrderServiceImplTest {
 
     @Mock
     private OrderRepository orderRepository;
 
     @InjectMocks
-    private OrderService orderService;
+    private OrderService orderServiceImpl;
 
     private Order order;
 
@@ -47,7 +48,7 @@ public class OrderServiceTest {
         details.add("Detail1");
         details.add("Detail2");
 
-        Order result = orderService.createOrderFlow("New Order", details);
+        Order result = orderServiceImpl.createOrderFlow("New Order", details);
 
         // Verify save method was called
         verify(orderRepository, times(1)).save(any(Order.class));
@@ -61,7 +62,7 @@ public class OrderServiceTest {
 
     @Test
     void updateOrderFlowTest() {
-        orderService.updateOrderFlow(1L, "Updated Order");
+        orderServiceImpl.updateOrderFlow(1L, "Updated Order");
 
         // Verify save method was called
         verify(orderRepository, times(1)).save(any(Order.class));
@@ -76,11 +77,11 @@ public class OrderServiceTest {
         details.add("Detail2");
 
         assertThrows(RuntimeException.class, () -> {
-            orderService.createAndUpdateOrder("New Order", details, "Newer Order");
+            orderServiceImpl.createAndUpdateOrder("New Order", details, "Newer Order");
         });
 
         verify(orderRepository, times(1)).save(any(Order.class));
-        assertNotNull(orderService.findOrderById(order.getId()));
+        assertNotNull(orderServiceImpl.findOrderById(order.getId()));
         assertNotEquals("Newer Order", order.getOrderInfo());
     }
 
@@ -97,9 +98,9 @@ public class OrderServiceTest {
         };
 
         assertThrows(IllegalArgumentException.class, () ->
-                orderService.processOrderBatchWithValidation(orderRequests, validator));
+                orderServiceImpl.processOrderBatchWithValidation(orderRequests, validator));
 
-        verify(orderService, times(0)).save(any(Order.class));
+        verify(orderServiceImpl, times(0)).save(any(Order.class));
         // This verifies that no orders were saved, since one of them was not valid.
     }
 }
