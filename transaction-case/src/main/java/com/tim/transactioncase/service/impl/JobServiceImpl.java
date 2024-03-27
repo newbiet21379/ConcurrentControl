@@ -6,9 +6,10 @@ import com.tim.transactioncase.model.Order;
 import com.tim.transactioncase.model.Shipment;
 import com.tim.transactioncase.repository.JobDataRepository;
 import com.tim.transactioncase.service.JobService;
-import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -23,7 +24,7 @@ public class JobServiceImpl implements JobService {
         this.jobDataRepository = jobDataRepository;
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public Job createJob(String jobInfo, List<Order> orders, JobStatus status, List<Shipment> shipments) {
         Job job = new Job();
         job.setJobInfo(jobInfo);

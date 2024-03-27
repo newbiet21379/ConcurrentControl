@@ -2,58 +2,55 @@ package com.tim.transactioncase.service.impl;
 
 import com.tim.transactioncase.common.JobStatus;
 import com.tim.transactioncase.common.ShipmentStatus;
-import com.tim.transactioncase.model.*;
-import com.tim.transactioncase.service.DriverService;
-import com.tim.transactioncase.service.JobFlowService;
-import com.tim.transactioncase.service.JobService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.tim.transactioncase.common.TransactionWrapper;
+import com.tim.transactioncase.exception.ResourceNotFoundException;
+import com.tim.transactioncase.model.Driver;
+import com.tim.transactioncase.model.Job;
+import com.tim.transactioncase.model.Order;
+import com.tim.transactioncase.model.Shipment;
+import com.tim.transactioncase.request.CreateJobFlowRequest;
+import com.tim.transactioncase.service.*;
+import com.tim.transactioncase.utils.CreateJobFlowMapper;
+import com.tim.transactioncase.utils.ShipmentMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.ObjectUtils;
+import org.springframework.util.concurrent.FutureUtils;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class JobFlowServiceImpl implements JobFlowService {
-    private final OrderServiceImpl orderServiceImpl;
+    private final OrderService orderServiceImpl;
 
-    private final ShipmentServiceImpl shipmentServiceImpl;
+    private final ShipmentService shipmentServiceImpl;
 
     private final JobService jobServiceImpl;
 
     private final DriverService driverServiceImpl;
 
-    @Autowired
-    public JobFlowServiceImpl(OrderServiceImpl orderServiceImpl, ShipmentServiceImpl shipmentServiceImpl, JobService jobServiceImpl, DriverService driverServiceImpl) {
+    private final TransactionWrapper transactionWrapper;
+
+    public JobFlowServiceImpl(OrderService orderServiceImpl, ShipmentService shipmentServiceImpl, JobService jobServiceImpl, DriverService driverServiceImpl, TransactionWrapper transactionWrapper) {
         this.orderServiceImpl = orderServiceImpl;
         this.shipmentServiceImpl = shipmentServiceImpl;
         this.jobServiceImpl = jobServiceImpl;
         this.driverServiceImpl = driverServiceImpl;
+        this.transactionWrapper = transactionWrapper;
     }
 
-    public Job createJobFlow(List<Order> orderList, Long driverId, List<String> detailInfos) {
-        Driver driver = driverServiceImpl.findDriverById(driverId);
-
-        if (driver == null) {
-            throw new IllegalArgumentException("Driver does not exist with id :" + driverId);
+    public Job createJobFlow(List<CreateJobFlowRequest> createJobRequests) {
+        List<Order> orders = CreateJobFlowMapper.toOrderList(createJobRequests);
+        List<Driver> drivers = getDriversFromList(CreateJobFlowMapper.toDriverIdList(createJobRequests));
+        List<Shipment> shipments = ShipmentMapper.toShipmentList(orders, drivers, ShipmentStatus.IN_TRANSIT);
+        if (ObjectUtils.isEmpty(drivers)) {
+            throw new ResourceNotFoundException("Driver does not exist");
         }
+        Driver driver = driverServiceImpl.findDriverById(drivers.get(0).getId());
 
-        List<Shipment> shipments = orderList.stream()
-                .map(order -> shipmentServiceImpl.createShipment("ShipmentInfo", order, driver, ShipmentStatus.IN_TRANSIT))
-                .collect(Collectors.toList());
-
-        Order order = orderServiceImpl.createOrder("OrderInfo", detailInfos);
-        Shipment shipment = shipmentServiceImpl.createShipment("ShipmentInfo", order, driver, ShipmentStatus.IN_TRANSIT);
-
-        order.setShipment(shipment);
-        orderServiceImpl.save(order);
-
-        List<Order> orders = new ArrayList<>(orderList);
-        orders.add(order);
-        shipments.add(shipment);
 
         Job job = jobServiceImpl.createJob("JobInfo", orders, JobStatus.IN_PROGRESS, shipments);
         if(!driver.getJobs().isEmpty()){
@@ -87,25 +84,45 @@ public class JobFlowServiceImpl implements JobFlowService {
         }
     }
 
-    @Transactional(isolation = Isolation.READ_COMMITTED)
-    public Job createJobFlowV2(List<Order> orderList, Long driverId, List<String> detailInfos) {
-        Driver driver = driverServiceImpl.findDriverById(driverId);
+    @Transactional
+    public Job createJobFlowV2(List<CreateJobFlowRequest> createJobRequests) {
+        List<Order> orders = CreateJobFlowMapper.toOrderList(createJobRequests);
+        List<Driver> drivers = getDriversFromList(CreateJobFlowMapper.toDriverIdList(createJobRequests));
+        List<Shipment> shipments = ShipmentMapper.toShipmentList(orders, drivers, ShipmentStatus.IN_TRANSIT);
+        // Separate transaction
+        transactionWrapper.doInTransaction(() -> {
+            orderServiceImpl.saveAll(orders);
+            driverServiceImpl.saveAll(drivers);
+            shipments.forEach(shipment ->
+                    FutureUtils.callAsync(() ->
+                            shipmentServiceImpl.createShipment(
+                                    shipment.getShipmentInfo()
+                                    , shipment.getOrder()
+                                    , shipment.getDriver()
+                                    , shipment.getStatus())
+                    )
+            );
+        });
 
+        return jobServiceImpl.createJob("JobInfo"
+                , orders
+                , createJobRequests.get(0).getJobStatus()
+                , shipments);
+    }
+
+    private Driver getDriverFromService(Long driverId) {
+        Driver driver = driverServiceImpl.findDriverById(driverId);
         if (driver == null) {
             throw new IllegalArgumentException("Driver does not exist with id :" + driverId);
         }
+        return driver;
+    }
 
-        List<Shipment> shipments = orderList.stream()
-                .map(order -> {
-                    orderServiceImpl.createOrder(order.getOrderInfo(), detailInfos);
-                    return shipmentServiceImpl.createShipment("ShipmentInfo", order, driver, ShipmentStatus.IN_TRANSIT);
-                })
-                .collect(Collectors.toList());
-
-        Job job = jobServiceImpl.createJob("JobInfo", orderList, JobStatus.IN_PROGRESS, shipments);
-        driverServiceImpl.save(driver);
-
-        return job;
+    public List<Driver> getDriversFromList(List<Long> driverIds) {
+        if (ObjectUtils.isEmpty(driverIds)) {
+            throw new ResourceNotFoundException();
+        }
+        return driverServiceImpl.findDriversByIds(driverIds);
     }
 
     @Transactional

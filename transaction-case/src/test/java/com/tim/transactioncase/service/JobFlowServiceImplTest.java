@@ -2,14 +2,15 @@ package com.tim.transactioncase.service;
 
 import com.tim.transactioncase.common.JobStatus;
 import com.tim.transactioncase.common.ShipmentStatus;
+import com.tim.transactioncase.common.TransactionWrapper;
 import com.tim.transactioncase.model.Driver;
 import com.tim.transactioncase.model.Job;
 import com.tim.transactioncase.model.Order;
 import com.tim.transactioncase.model.Shipment;
-import com.tim.transactioncase.repository.JobDataRepository;
-import com.tim.transactioncase.repository.OrderRepository;
+import com.tim.transactioncase.request.CreateJobFlowRequest;
 import com.tim.transactioncase.service.impl.*;
-import org.aspectj.weaver.ast.Or;
+import com.tim.transactioncase.utils.CreateJobFlowMapper;
+import com.tim.transactioncase.utils.ShipmentMapper;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,7 +18,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.BDDMockito.given;
@@ -39,6 +42,9 @@ public class JobFlowServiceImplTest {
 
     @Mock
     private ShipmentServiceImpl shipmentService;
+
+    @Mock
+    private TransactionWrapper transactionWrapper;
 
     private Job job;
     private Driver driver;
@@ -69,6 +75,18 @@ public class JobFlowServiceImplTest {
         doNothing().when(driverServiceImpl).save(any());
     }
 
+    public static List<CreateJobFlowRequest> getMockData() {
+        return Collections.singletonList(new CreateJobFlowRequest(
+                (long)1,
+                (long)1,
+                "Order info",
+                "Detail info" ,
+                "Shipment info",
+                JobStatus.COMPLETED,
+                ShipmentStatus.DELIVERED
+        ));
+    }
+
     @NotNull
     private Shipment generateShipment() {
         Shipment shipment = new Shipment();
@@ -83,7 +101,7 @@ public class JobFlowServiceImplTest {
     public void testCreateJobFlow() {
         Order order = new Order();
 
-        Job job = jobFlowServiceImpl.createJobFlow(List.of(order), driver.getId(), List.of("DetailInfo"));
+        Job job = jobFlowServiceImpl.createJobFlow(getMockData());
         verify(jobServiceImpl, times(1)).createJob(anyString(), anyList(), eq(JobStatus.IN_PROGRESS), anyList());
         assertEquals(job, jobServiceImpl.createJob("JobInfo", List.of(order), JobStatus.IN_PROGRESS, List.of(new Shipment())));
     }
@@ -96,15 +114,6 @@ public class JobFlowServiceImplTest {
     }
 
     @Test
-    public void testCreateJobFlowV2() {
-        Order order = new Order();
-
-        Job job = jobFlowServiceImpl.createJobFlowV2(List.of(order), driver.getId(), List.of("DetailInfo"));
-        verify(jobServiceImpl, times(1)).createJob(anyString(), anyList(), eq(JobStatus.IN_PROGRESS), anyList());
-        assertEquals(job, jobServiceImpl.createJob("JobInfo", List.of(order), JobStatus.IN_PROGRESS, Arrays.asList(new Shipment())));
-    }
-
-    @Test
     void testCreateJobFlowV2WithException() {
         // Arrange
         Order order = new Order();
@@ -114,8 +123,33 @@ public class JobFlowServiceImplTest {
         doThrow(runtimeException).when(jobServiceImpl).createJob(anyString(), anyList(), eq(JobStatus.IN_PROGRESS), anyList());
 
         // Act & Assert
-        assertThrows(RuntimeException.class, () -> jobFlowServiceImpl.createJobFlowV2(List.of(order), driver.getId(), List.of("DetailInfo")));
+        assertThrows(RuntimeException.class, () -> jobFlowServiceImpl.createJobFlowV2(getMockData()));
         verify(jobServiceImpl, times(1)).createJob(anyString(), anyList(), eq(JobStatus.IN_PROGRESS), anyList());
+    }
+
+    @Test
+    public void testCreateJobFlowV2() {
+        List<CreateJobFlowRequest> createJobRequests = getMockData(); // assuming this returns list of mock CreateJobFlowRequest objects
+        List<Order> mockOrders = CreateJobFlowMapper.toOrderList(createJobRequests); // assuming this function exists and works
+
+        when(driverServiceImpl.findDriversByIds(anyList())).thenReturn(Collections.singletonList(driver));
+        when(orderServiceImpl.saveAll(anyList())).thenReturn(mockOrders);
+        doNothing().when(driverServiceImpl).saveAll(anyList());
+
+        List<Driver> mockDrivers = driverServiceImpl.findDriversByIds(CreateJobFlowMapper.toDriverIdList(createJobRequests)); // assuming Drivers list is obtained somehow
+        List<Shipment> mockShipments = ShipmentMapper.toShipmentList(mockOrders, mockDrivers, ShipmentStatus.IN_TRANSIT); // assuming this function exists and works
+        String jobInfo = "JobInfo";
+        JobStatus jobStatus = createJobRequests.get(0).getJobStatus();
+        Job expectedJob = new Job(1L, jobInfo, jobStatus, driver, mockOrders, mockShipments); // assuming constructor exists in Job
+
+        when(shipmentService.createShipment(any(), any(), any(), any())).thenReturn(mockShipments.get(0)); // assuming it returns a Shipment
+        when(jobServiceImpl.createJob(anyString(), anyList(), any(JobStatus.class), anyList())).thenReturn(expectedJob);
+
+        Job resultJob = jobFlowServiceImpl.createJobFlowV2(createJobRequests);
+
+        verify(jobServiceImpl, times(1)).createJob(anyString(), anyList(), any(JobStatus.class), anyList());
+
+        assertEquals(expectedJob, resultJob);
     }
 
     @Test
@@ -143,13 +177,11 @@ public class JobFlowServiceImplTest {
     @Test
     void shouldCreateJobFlow() {
         // Arrange
-        List<Order> orderList = new ArrayList<>();
-        List<String> detailInfos = new ArrayList<>();
         Job expectedJob = new Job();
         when(jobServiceImpl.createJob(anyString(), anyList(), any(JobStatus.class), anyList())).thenReturn(expectedJob);
 
         // Act
-        Job actualJob = jobFlowServiceImpl.createJobFlow(orderList, driver.getId(), detailInfos);
+        Job actualJob = jobFlowServiceImpl.createJobFlow(getMockData());
 
         // Assert
         assertNotNull(actualJob);

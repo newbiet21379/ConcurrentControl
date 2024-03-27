@@ -34,11 +34,19 @@ public class DriverServiceImpl implements DriverService {
     public void save(Driver driver) {
         driverRepository.save(driver);
     }
+    public void saveAll(List<Driver> driver) {
+        driverRepository.saveAll(driver);
+    }
 
     @Override
     public Driver findDriverById(Long driverId) {
         Optional<Driver> driver = driverRepository.findById(driverId);
         return driver.orElse(null);
+    }
+
+    @Override
+    public List<Driver> findDriversByIds(List<Long> driverIds) {
+        return driverRepository.findAllById(driverIds);
     }
 
     @Override

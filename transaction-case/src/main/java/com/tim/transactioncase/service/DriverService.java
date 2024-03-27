@@ -9,8 +9,10 @@ import java.util.List;
 public interface DriverService {
     public Driver createDriver(String name, String mobile);
     public void save(Driver driver);
+    public void saveAll(List<Driver> driver);
 
     Driver findDriverById(Long driverId);
+    List<Driver> findDriversByIds(List<Long> driverId);
 
     Driver assignVehicleToDriver(Long driverId, Vehicle vehicle);
 

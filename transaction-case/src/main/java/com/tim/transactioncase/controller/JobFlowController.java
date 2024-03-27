@@ -19,17 +19,17 @@ public class JobFlowController {
     private final JobFlowService jobFlowServiceImpl;
     private final JobService jobService;
     @Autowired
-    public JobFlowController(JobFlowService jobFlowServiceImpl, JobService jobService) {
-        this.jobFlowServiceImpl = jobFlowServiceImpl;
+    public JobFlowController(JobFlowService jobFlowService, JobService jobService) {
+        this.jobFlowServiceImpl = jobFlowService;
         this.jobService = jobService;
     }
 
     @PostMapping("/create")
-    public Job createJobFlow(@RequestBody CreateJobFlowRequest request, @PathVariable("version") String version) {
+    public Job createJobFlow(@RequestBody List<CreateJobFlowRequest> requests, @PathVariable("version") String version) {
         if(version.equals("v2")){
-            return jobFlowServiceImpl.createJobFlowV2(request.getOrderList(), request.getDriverId(), request.getDetailInfos());
+            return jobFlowServiceImpl.createJobFlowV2(requests);
         }
-        return jobFlowServiceImpl.createJobFlow(request.getOrderList(), request.getDriverId(), request.getDetailInfos());
+        return jobFlowServiceImpl.createJobFlow(requests);
     }
 
     @PutMapping("/update/{id}/{status}")

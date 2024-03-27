@@ -10,6 +10,7 @@ public interface OrderService {
     Order createOrder(String orderInfo, List<String> details);
 
     Order save(Order order);
+    List<Order> saveAll(List<Order> order);
 
     Order createOrderFlow(String orderInfo, List<String> detailInfos);
 

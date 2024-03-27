@@ -43,6 +43,9 @@ public class OrderServiceImpl implements OrderService {
     public Order save(Order order) {
         return orderRepository.save(order);
     }
+    public List<Order> saveAll(List<Order> order) {
+        return orderRepository.saveAll(order);
+    }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public Order createOrderFlow(String orderInfo, List<String> detailInfos) {
@@ -97,7 +100,6 @@ public class OrderServiceImpl implements OrderService {
             newOrders.add(order);
         }
 
-        // If we've gotten to here, it means all orders were valid. Proceed with saving them.
         for (Order order : newOrders) {
             save(order);
         }
