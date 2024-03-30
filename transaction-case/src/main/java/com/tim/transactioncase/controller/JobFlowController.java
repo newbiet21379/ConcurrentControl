@@ -25,10 +25,7 @@ public class JobFlowController {
     }
 
     @PostMapping("/create")
-    public Job createJobFlow(@RequestBody List<CreateJobFlowRequest> requests, @PathVariable("version") String version) {
-        if(version.equals("v2")){
-            return jobFlowServiceImpl.createJobFlowV2(requests);
-        }
+    public List<Job> createJobFlow(@RequestBody List<CreateJobFlowRequest> requests, @PathVariable("version") String version) {
         return jobFlowServiceImpl.createJobFlow(requests);
     }
 

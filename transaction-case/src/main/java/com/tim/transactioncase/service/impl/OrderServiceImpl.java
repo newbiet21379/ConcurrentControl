@@ -1,5 +1,6 @@
 package com.tim.transactioncase.service.impl;
 
+import com.tim.transactioncase.model.Driver;
 import com.tim.transactioncase.model.OrderExecute;
 import com.tim.transactioncase.repository.OrderRepository;
 import com.tim.transactioncase.request.OrderRequest;
@@ -103,6 +104,18 @@ public class OrderServiceImpl implements OrderService {
         for (Order order : newOrders) {
             save(order);
         }
+    }
+
+    public List<Order> getOrdersByDriver(Driver driver) {
+        return orderRepository.getOrdersByDriver(driver);
+    }
+
+    public boolean isOrderCountMatchedWithRequest(Driver driver, Integer count) {
+        return orderRepository.isOrderCountMatchedWithRequest(driver, count);
+    }
+
+    public List<Order> findByDriverIds(List<Long> driverIds) {
+        return orderRepository.findByDriverIds(driverIds);
     }
 
 }

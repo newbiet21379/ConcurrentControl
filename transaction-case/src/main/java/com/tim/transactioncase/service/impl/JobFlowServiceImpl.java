@@ -17,10 +17,10 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
-import org.springframework.util.concurrent.FutureUtils;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class JobFlowServiceImpl implements JobFlowService {
@@ -40,24 +40,6 @@ public class JobFlowServiceImpl implements JobFlowService {
         this.jobServiceImpl = jobServiceImpl;
         this.driverServiceImpl = driverServiceImpl;
         this.transactionWrapper = transactionWrapper;
-    }
-
-    public Job createJobFlow(List<CreateJobFlowRequest> createJobRequests) {
-        List<Order> orders = CreateJobFlowMapper.toOrderList(createJobRequests);
-        List<Driver> drivers = getDriversFromList(CreateJobFlowMapper.toDriverIdList(createJobRequests));
-        List<Shipment> shipments = ShipmentMapper.toShipmentList(orders, drivers, ShipmentStatus.IN_TRANSIT);
-        if (ObjectUtils.isEmpty(drivers)) {
-            throw new ResourceNotFoundException("Driver does not exist");
-        }
-        Driver driver = driverServiceImpl.findDriverById(drivers.get(0).getId());
-
-
-        Job job = jobServiceImpl.createJob("JobInfo", orders, JobStatus.IN_PROGRESS, shipments);
-        if(!driver.getJobs().isEmpty()){
-            driver.getJobs().add(job);
-            driverServiceImpl.save(driver);
-        }
-        return job;
     }
 
     public void updateJobStatusNormalFlow(Long jobId, JobStatus status) {
@@ -84,30 +66,54 @@ public class JobFlowServiceImpl implements JobFlowService {
         }
     }
 
-    @Transactional
-    public Job createJobFlowV2(List<CreateJobFlowRequest> createJobRequests) {
+    public List<Job> createJobFlow(List<CreateJobFlowRequest> createJobRequests) {
         List<Order> orders = CreateJobFlowMapper.toOrderList(createJobRequests);
         List<Driver> drivers = getDriversFromList(CreateJobFlowMapper.toDriverIdList(createJobRequests));
+        orderServiceImpl.saveAll(orders);
+
+        List<Job> jobs = createJobsPerDriver(drivers);
+
         List<Shipment> shipments = ShipmentMapper.toShipmentList(orders, drivers, ShipmentStatus.IN_TRANSIT);
-        // Separate transaction
-        transactionWrapper.doInTransaction(() -> {
-            orderServiceImpl.saveAll(orders);
-            driverServiceImpl.saveAll(drivers);
-            shipments.forEach(shipment ->
-                    FutureUtils.callAsync(() ->
-                            shipmentServiceImpl.createShipment(
-                                    shipment.getShipmentInfo()
-                                    , shipment.getOrder()
-                                    , shipment.getDriver()
-                                    , shipment.getStatus())
-                    )
-            );
+
+        // Map shipments by driver
+        Map<Driver, List<Shipment>> shipmentByDriver = shipments.stream()
+                .collect(Collectors.groupingBy(Shipment::getDriver));
+
+        List<Order> allOrders = orderServiceImpl.findByDriverIds(drivers.stream().map(Driver::getId).collect(Collectors.toList()));
+        Map<Driver, List<Order>> ordersByDriver = allOrders.stream()
+                .collect(Collectors.groupingBy(order -> order.getShipment().getDriver()));
+        jobs.forEach(job -> {
+            Driver driver = job.getDriver();
+            List<Order> driverOrders = ordersByDriver.get(driver);
+            List<Shipment> driverShipments = shipmentByDriver.get(driver);
+
+            // Check if all orders for this driver exist
+            if (driverOrders != null &&  orderServiceImpl.isOrderCountMatchedWithRequest(driver ,driverOrders.size()) ) {
+                if (driverShipments != null) {
+                    job.setShipments(driverShipments);
+                    job.setStatus(JobStatus.ASSIGNED);
+                    jobServiceImpl.save(job);
+                }
+            }
         });
 
-        return jobServiceImpl.createJob("JobInfo"
-                , orders
-                , createJobRequests.get(0).getJobStatus()
-                , shipments);
+        return jobs;
+    }
+
+    @Transactional
+    public List<Job> createJobFlowTransaction(List<CreateJobFlowRequest> createJobRequests){
+        return transactionWrapper.doInSameTransaction(() -> createJobFlow(createJobRequests));
+    }
+
+    private List<Job> createJobsPerDriver(List<Driver> drivers) {
+        // Create Job for each driver with PENDING status
+        return drivers.stream().map(driver -> {
+            Job job = new Job();
+            job.setJobInfo("JobInfo");
+            job.setStatus(JobStatus.PENDING);
+            job.setDriver(driver);
+            return jobServiceImpl.save(job);
+        }).collect(Collectors.toList());
     }
 
     private Driver getDriverFromService(Long driverId) {

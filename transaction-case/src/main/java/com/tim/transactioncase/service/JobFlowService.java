@@ -10,16 +10,13 @@ import java.util.List;
 
 public interface JobFlowService {
 
-    Job createJobFlow(List<CreateJobFlowRequest> requests);
-
+    List<Job> createJobFlow(List<CreateJobFlowRequest> requests);
+    List<Job> createJobFlowTransaction(List<CreateJobFlowRequest> createJobRequests);
     void updateJobStatusNormalFlow(Long jobId, JobStatus status);
-
-    Job createJobFlowV2(List<CreateJobFlowRequest> jobFlowRequests);
 
     void updateJobStatusV2(Long jobId, JobStatus status);
 
     List<Job> findOpenJobs();
 
     Job assignJobToDriver(Long jobId, Driver driver);
-
 }

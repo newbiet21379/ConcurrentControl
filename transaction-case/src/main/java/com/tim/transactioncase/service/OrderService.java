@@ -1,5 +1,6 @@
 package com.tim.transactioncase.service;
 
+import com.tim.transactioncase.model.Driver;
 import com.tim.transactioncase.model.Order;
 import com.tim.transactioncase.request.OrderRequest;
 
@@ -21,4 +22,10 @@ public interface OrderService {
     void createAndUpdateOrder(String orderName, List<String> detailInfos, String newName);
 
     void processOrderBatchWithValidation(List<OrderRequest> orders, OrderValidator orderValidator);
+
+    List<Order> getOrdersByDriver(Driver driver);
+
+    boolean isOrderCountMatchedWithRequest(Driver driver, Integer size);
+
+    List<Order> findByDriverIds(List<Long> collect);
 }

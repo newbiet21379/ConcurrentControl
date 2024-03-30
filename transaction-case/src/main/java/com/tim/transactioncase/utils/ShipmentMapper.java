@@ -17,7 +17,8 @@ public class ShipmentMapper {
         }
 
         return IntStream.range(0, orders.size())
-                .mapToObj(i -> toShipment(orders.get(i), drivers.get(i), status))
+                .mapToObj(i ->
+                        toShipment(orders.get(i), drivers.get(i), status))
                 .collect(Collectors.toList());
     }
 

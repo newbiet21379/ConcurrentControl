@@ -98,58 +98,10 @@ public class JobFlowServiceImplTest {
     }
 
     @Test
-    public void testCreateJobFlow() {
-        Order order = new Order();
-
-        Job job = jobFlowServiceImpl.createJobFlow(getMockData());
-        verify(jobServiceImpl, times(1)).createJob(anyString(), anyList(), eq(JobStatus.IN_PROGRESS), anyList());
-        assertEquals(job, jobServiceImpl.createJob("JobInfo", List.of(order), JobStatus.IN_PROGRESS, List.of(new Shipment())));
-    }
-
-    @Test
     public void testUpdateJobStatusNormalFlow() {
         jobFlowServiceImpl.updateJobStatusNormalFlow(1L, JobStatus.COMPLETED);
         verify(jobServiceImpl, times(1)).findJobById(1L);
         verify(jobServiceImpl, times(1)).save(any(Job.class));
-    }
-
-    @Test
-    void testCreateJobFlowV2WithException() {
-        // Arrange
-        Order order = new Order();
-        RuntimeException runtimeException = new RuntimeException("Transaction exception");
-
-        // Make createJob throw the RuntimeException when called
-        doThrow(runtimeException).when(jobServiceImpl).createJob(anyString(), anyList(), eq(JobStatus.IN_PROGRESS), anyList());
-
-        // Act & Assert
-        assertThrows(RuntimeException.class, () -> jobFlowServiceImpl.createJobFlowV2(getMockData()));
-        verify(jobServiceImpl, times(1)).createJob(anyString(), anyList(), eq(JobStatus.IN_PROGRESS), anyList());
-    }
-
-    @Test
-    public void testCreateJobFlowV2() {
-        List<CreateJobFlowRequest> createJobRequests = getMockData(); // assuming this returns list of mock CreateJobFlowRequest objects
-        List<Order> mockOrders = CreateJobFlowMapper.toOrderList(createJobRequests); // assuming this function exists and works
-
-        when(driverServiceImpl.findDriversByIds(anyList())).thenReturn(Collections.singletonList(driver));
-        when(orderServiceImpl.saveAll(anyList())).thenReturn(mockOrders);
-        doNothing().when(driverServiceImpl).saveAll(anyList());
-
-        List<Driver> mockDrivers = driverServiceImpl.findDriversByIds(CreateJobFlowMapper.toDriverIdList(createJobRequests)); // assuming Drivers list is obtained somehow
-        List<Shipment> mockShipments = ShipmentMapper.toShipmentList(mockOrders, mockDrivers, ShipmentStatus.IN_TRANSIT); // assuming this function exists and works
-        String jobInfo = "JobInfo";
-        JobStatus jobStatus = createJobRequests.get(0).getJobStatus();
-        Job expectedJob = new Job(1L, jobInfo, jobStatus, driver, mockOrders, mockShipments); // assuming constructor exists in Job
-
-        when(shipmentService.createShipment(any(), any(), any(), any())).thenReturn(mockShipments.get(0)); // assuming it returns a Shipment
-        when(jobServiceImpl.createJob(anyString(), anyList(), any(JobStatus.class), anyList())).thenReturn(expectedJob);
-
-        Job resultJob = jobFlowServiceImpl.createJobFlowV2(createJobRequests);
-
-        verify(jobServiceImpl, times(1)).createJob(anyString(), anyList(), any(JobStatus.class), anyList());
-
-        assertEquals(expectedJob, resultJob);
     }
 
     @Test
@@ -172,20 +124,6 @@ public class JobFlowServiceImplTest {
         verify(jobServiceImpl, times(1)).findJobById(1L);
         verify(jobServiceImpl, times(1)).save(any(Job.class));
         assertEquals(job, jobServiceImpl.save(new Job()));
-    }
-
-    @Test
-    void shouldCreateJobFlow() {
-        // Arrange
-        Job expectedJob = new Job();
-        when(jobServiceImpl.createJob(anyString(), anyList(), any(JobStatus.class), anyList())).thenReturn(expectedJob);
-
-        // Act
-        Job actualJob = jobFlowServiceImpl.createJobFlow(getMockData());
-
-        // Assert
-        assertNotNull(actualJob);
-        assertEquals(expectedJob, actualJob);
     }
 
     @Test
