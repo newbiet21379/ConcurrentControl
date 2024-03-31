@@ -4,6 +4,7 @@ import com.tim.transactioncase.common.JobStatus;
 import com.tim.transactioncase.model.Driver;
 import com.tim.transactioncase.model.Job;
 import com.tim.transactioncase.request.CreateJobFlowRequest;
+import com.tim.transactioncase.request.JobBatchRequest;
 import com.tim.transactioncase.service.JobFlowService;
 import com.tim.transactioncase.service.JobService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,10 +26,10 @@ public class JobFlowController {
     }
 
     @PostMapping("/create")
-    public List<Job> createJobFlow(@RequestBody List<CreateJobFlowRequest> requests, @PathVariable("version") String version) {
+    public List<Job> createJobFlow(@RequestBody JobBatchRequest request, @PathVariable("version") String version) {
         return switch (version) {
-            case "v1" -> jobFlowServiceImpl.createJobFlow(requests);
-            case "v2" -> jobFlowServiceImpl.createJobFlowTransaction(requests);
+            case "v1" -> jobFlowServiceImpl.createJobFlow(request.getJobFlowRequests());
+            case "v2" -> jobFlowServiceImpl.createJobFlowTransaction(request);
             default -> null;
         };
     }

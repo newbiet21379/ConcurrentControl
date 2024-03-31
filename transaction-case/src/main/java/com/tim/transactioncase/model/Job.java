@@ -18,7 +18,6 @@ public class Job {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
     private String presetLine;
-    @Enumerated(EnumType.STRING)
     private JobStatus status;
 
     @ManyToOne
