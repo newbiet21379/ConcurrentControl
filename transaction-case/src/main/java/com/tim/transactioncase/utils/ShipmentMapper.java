@@ -22,10 +22,9 @@ public class ShipmentMapper {
                 .collect(Collectors.toList());
     }
 
-    private static Shipment toShipment(Order order, Driver driver, ShipmentStatus status) {
+    public static Shipment toShipment(Order order, Driver driver, ShipmentStatus status) {
         Shipment shipment = new Shipment();
         shipment.setOrder(order);
-        shipment.setDriver(driver);
         shipment.setStatus(status);
         return shipment;
     }

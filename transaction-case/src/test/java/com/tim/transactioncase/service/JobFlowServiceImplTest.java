@@ -68,7 +68,7 @@ public class JobFlowServiceImplTest {
         MockitoAnnotations.openMocks(this);
         when(jobServiceImpl.findJobById(anyLong())).thenReturn(job);
         when(jobServiceImpl.save(any())).thenReturn(job);
-        when(shipmentService.createShipment(anyString(), any(), any(), any())).thenReturn(new Shipment());
+        when(shipmentService.createShipment(anyString(), any(), any())).thenReturn(new Shipment());
         when(orderServiceImpl.createOrder(anyString(), anyList())).thenReturn(new Order());
         when(orderServiceImpl.save(any())).thenReturn(new Order());
         when(driverServiceImpl.findDriverById(1L)).thenReturn(driver);
@@ -77,8 +77,8 @@ public class JobFlowServiceImplTest {
 
     public static List<CreateJobFlowRequest> getMockData() {
         return Collections.singletonList(new CreateJobFlowRequest(
-                (long)1,
-                (long)1,
+                1L,
+                "1L",
                 "Order info",
                 "Detail info" ,
                 "Shipment info",
@@ -90,7 +90,6 @@ public class JobFlowServiceImplTest {
     @NotNull
     private Shipment generateShipment() {
         Shipment shipment = new Shipment();
-        shipment.setDriver(driver);
         shipment.setStatus(ShipmentStatus.IN_TRANSIT);
         shipment.setShipmentInfo("ShipmentInfo");
         shipment.setId(1L);

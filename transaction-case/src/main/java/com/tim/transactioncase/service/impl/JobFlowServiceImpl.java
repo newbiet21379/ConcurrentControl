@@ -1,13 +1,12 @@
 package com.tim.transactioncase.service.impl;
 
 import com.tim.transactioncase.common.JobStatus;
+import com.tim.transactioncase.common.OrderStatus;
 import com.tim.transactioncase.common.ShipmentStatus;
 import com.tim.transactioncase.common.TransactionWrapper;
 import com.tim.transactioncase.exception.ResourceNotFoundException;
-import com.tim.transactioncase.model.Driver;
-import com.tim.transactioncase.model.Job;
-import com.tim.transactioncase.model.Order;
-import com.tim.transactioncase.model.Shipment;
+import com.tim.transactioncase.model.*;
+import com.tim.transactioncase.repository.OrderExecuteRepository;
 import com.tim.transactioncase.request.CreateJobFlowRequest;
 import com.tim.transactioncase.service.*;
 import com.tim.transactioncase.utils.CreateJobFlowMapper;
@@ -18,12 +17,16 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 public class JobFlowServiceImpl implements JobFlowService {
+
+    private Integer countPresetLine = 0;
     private final OrderService orderServiceImpl;
 
     private final ShipmentService shipmentServiceImpl;
@@ -34,12 +37,19 @@ public class JobFlowServiceImpl implements JobFlowService {
 
     private final TransactionWrapper transactionWrapper;
 
-    public JobFlowServiceImpl(OrderService orderServiceImpl, ShipmentService shipmentServiceImpl, JobService jobServiceImpl, DriverService driverServiceImpl, TransactionWrapper transactionWrapper) {
+    private final OrderExecuteRepository orderExecuteRepository;
+
+    public JobFlowServiceImpl(OrderService orderServiceImpl, ShipmentService shipmentServiceImpl, JobService jobServiceImpl, DriverService driverServiceImpl, TransactionWrapper transactionWrapper, OrderExecuteRepository orderExecuteRepository) {
         this.orderServiceImpl = orderServiceImpl;
         this.shipmentServiceImpl = shipmentServiceImpl;
         this.jobServiceImpl = jobServiceImpl;
         this.driverServiceImpl = driverServiceImpl;
         this.transactionWrapper = transactionWrapper;
+        this.orderExecuteRepository = orderExecuteRepository;
+    }
+
+    public Integer getCountPresetLine(){
+        return ++countPresetLine;
     }
 
     public void updateJobStatusNormalFlow(Long jobId, JobStatus status) {
@@ -69,48 +79,123 @@ public class JobFlowServiceImpl implements JobFlowService {
     public List<Job> createJobFlow(List<CreateJobFlowRequest> createJobRequests) {
         List<Order> orders = CreateJobFlowMapper.toOrderList(createJobRequests);
         List<Driver> drivers = getDriversFromList(CreateJobFlowMapper.toDriverIdList(createJobRequests));
-        orderServiceImpl.saveAll(orders);
+        if(ObjectUtils.isEmpty(drivers)) return null;
+        orders = orderServiceImpl.saveAll(orders);
+        Map<String, List<Order>> presetLineMap = new HashMap<>();
+        Map<String, Driver> lineDriver = new HashMap<>();
 
-        List<Job> jobs = createJobsPerDriver(drivers);
-
-        List<Shipment> shipments = ShipmentMapper.toShipmentList(orders, drivers, ShipmentStatus.IN_TRANSIT);
-
-        // Map shipments by driver
-        Map<Driver, List<Shipment>> shipmentByDriver = shipments.stream()
-                .collect(Collectors.groupingBy(Shipment::getDriver));
-
-        List<Order> allOrders = orderServiceImpl.findByDriverIds(drivers.stream().map(Driver::getId).collect(Collectors.toList()));
-        Map<Driver, List<Order>> ordersByDriver = allOrders.stream()
-                .collect(Collectors.groupingBy(order -> order.getShipment().getDriver()));
-        jobs.forEach(job -> {
-            Driver driver = job.getDriver();
-            List<Order> driverOrders = ordersByDriver.get(driver);
-            List<Shipment> driverShipments = shipmentByDriver.get(driver);
-
-            // Check if all orders for this driver exist
-            if (driverOrders != null &&  orderServiceImpl.isOrderCountMatchedWithRequest(driver ,driverOrders.size()) ) {
-                if (driverShipments != null) {
-                    job.setShipments(driverShipments);
-                    job.setStatus(JobStatus.ASSIGNED);
-                    jobServiceImpl.save(job);
-                }
+        for (Order order : orders) {
+            String presetLine = ObjectUtils.isEmpty(order.getPresetLine()) ? String.valueOf(getCountPresetLine()) : order.getPresetLine();
+            if (ObjectUtils.isEmpty(presetLineMap.get(presetLine))) {
+                List<Order> orderList = new ArrayList<>();
+                orderList.add(order);
+                presetLineMap.put(presetLine, orderList);
+            } else {
+                presetLineMap.get(presetLine).add(order);
             }
+        }
+
+        for (CreateJobFlowRequest jobFlowRequest : createJobRequests) {
+            String presetLine = ObjectUtils.isEmpty(jobFlowRequest.getPresetLine()) ? String.valueOf(getCountPresetLine()) : jobFlowRequest.getPresetLine();
+            Driver driver = getDriverFromJobRequest(jobFlowRequest);
+            lineDriver.put(presetLine, driver);
+        }
+        List<Job> jobs = new ArrayList<>(presetLineMap.size());
+
+        presetLineMap.forEach((key, value) -> {
+            Driver driver = lineDriver.get(key);
+
+            Job job = jobServiceImpl.createJob(value, JobStatus.CREATED, new ArrayList<>(), key, driver);
+
+            List<Shipment> shipments = new ArrayList<>();
+            for (Order order : value) {
+                order.setOrderStatus(OrderStatus.PENDING);
+                order.setJob(job);
+                Shipment shipment = ShipmentMapper.toShipment(order, driver, ShipmentStatus.PENDING);
+                shipment.setJob(job);
+                order.setShipment(shipment);
+                shipments.add(shipmentServiceImpl.save(shipment));
+            }
+
+
+            int shipmentSeq = 1;
+            for (Shipment shipment : shipments) {
+                shipment.setSequence(shipmentSeq++);
+                shipmentServiceImpl.save(shipment);
+            }
+            job.setShipments(shipments);
+            driver.getJobs().add(job);
+            jobs.add(jobServiceImpl.confirmJob(job));
+        });
+        return jobs;
+    }
+
+    @Transactional(propagation = Propagation.REQUIRED)
+    public List<Job> createJobFlowTransaction(List<CreateJobFlowRequest> createJobRequests) {
+        List<Order> orders = CreateJobFlowMapper.toOrderList(createJobRequests);
+        List<Driver> drivers = getDriversFromList(CreateJobFlowMapper.toDriverIdList(createJobRequests));
+        if(ObjectUtils.isEmpty(drivers)) return null;
+        orders = orderServiceImpl.saveAll(orders);
+        Map<String, List<Order>> presetLineMap = new HashMap<>();
+        Map<String, Driver> lineDriver = new HashMap<>();
+
+        for (Order order : orders) {
+            String presetLine = ObjectUtils.isEmpty(order.getPresetLine()) ? String.valueOf(getCountPresetLine()) : order.getPresetLine();
+            if (ObjectUtils.isEmpty(presetLineMap.get(presetLine))) {
+                List<Order> orderList = new ArrayList<>();
+                orderList.add(order);
+                presetLineMap.put(presetLine, orderList);
+            } else {
+                presetLineMap.get(presetLine).add(order);
+            }
+        }
+
+        for (CreateJobFlowRequest jobFlowRequest : createJobRequests) {
+            String presetLine = ObjectUtils.isEmpty(jobFlowRequest.getPresetLine()) ? String.valueOf(getCountPresetLine()) : jobFlowRequest.getPresetLine();
+            Driver driver = getDriverFromJobRequest(jobFlowRequest);
+            lineDriver.put(presetLine, driver);
+        }
+
+        List<Job> jobs = new ArrayList<>(presetLineMap.size());
+
+        presetLineMap.forEach((key, value) -> {
+            Driver driver = lineDriver.get(key);
+
+            Job job = jobServiceImpl.createJob(value, JobStatus.CREATED, new ArrayList<>(), key, driver);
+
+            List<Shipment> shipments = new ArrayList<>();
+            for (Order order : value) {
+                order.setOrderStatus(OrderStatus.PENDING);
+                order.setJob(job);
+                Shipment shipment = ShipmentMapper.toShipment(order, driver, ShipmentStatus.PENDING);
+                shipment.setJob(job);
+                order.setShipment(shipment);
+                shipments.add(shipmentServiceImpl.save(shipment));
+            }
+
+
+            int shipmentSeq = 1;
+            for (Shipment shipment : shipments) {
+                shipment.setSequence(shipmentSeq++);
+                shipmentServiceImpl.save(shipment);
+            }
+            job.setShipments(shipments);
+            driver.getJobs().add(job);
+            jobs.add(jobServiceImpl.confirmJob(job));
         });
 
         return jobs;
     }
 
-    @Transactional
-    public List<Job> createJobFlowTransaction(List<CreateJobFlowRequest> createJobRequests){
-        return transactionWrapper.doInSameTransaction(() -> createJobFlow(createJobRequests));
+    private Driver getDriverFromJobRequest(CreateJobFlowRequest createJobFlowRequest){
+        return driverServiceImpl.findDriverById(createJobFlowRequest.getDriverId());
     }
 
     private List<Job> createJobsPerDriver(List<Driver> drivers) {
         // Create Job for each driver with PENDING status
         return drivers.stream().map(driver -> {
             Job job = new Job();
-            job.setJobInfo("JobInfo");
-            job.setStatus(JobStatus.PENDING);
+            job.setStatus(JobStatus.CREATED);
             job.setDriver(driver);
             return jobServiceImpl.save(job);
         }).collect(Collectors.toList());

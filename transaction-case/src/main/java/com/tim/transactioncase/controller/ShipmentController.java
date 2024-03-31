@@ -23,7 +23,6 @@ public class ShipmentController {
         Shipment createdShipment = shipmentService.createShipment(
                 shipment.getShipmentInfo(),
                 shipment.getOrder(),
-                shipment.getDriver(),
                 shipment.getStatus());
 
         return ResponseEntity.ok(createdShipment);

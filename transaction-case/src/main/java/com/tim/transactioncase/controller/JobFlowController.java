@@ -26,8 +26,13 @@ public class JobFlowController {
 
     @PostMapping("/create")
     public List<Job> createJobFlow(@RequestBody List<CreateJobFlowRequest> requests, @PathVariable("version") String version) {
-        return jobFlowServiceImpl.createJobFlow(requests);
+        return switch (version) {
+            case "v1" -> jobFlowServiceImpl.createJobFlow(requests);
+            case "v2" -> jobFlowServiceImpl.createJobFlowTransaction(requests);
+            default -> null;
+        };
     }
+
 
     @PutMapping("/update/{id}/{status}")
     public void updateJobStatus(@PathVariable("id") Long jobId,

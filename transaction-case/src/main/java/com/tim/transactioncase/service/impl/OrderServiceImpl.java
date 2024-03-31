@@ -29,14 +29,11 @@ public class OrderServiceImpl implements OrderService {
         Order order = new Order();
         order.setOrderInfo(orderInfo);
 
-        List<OrderExecute> orderDetails = details.stream().map(detail -> {
-            OrderExecute orderDetail = new OrderExecute();
-            orderDetail.setDetailInfo(detail);
-            orderDetail.setOrder(order);
-            return orderDetail;
-        }).collect(Collectors.toList());
+        OrderExecute orderDetail = new OrderExecute();
+        orderDetail.setDetailInfo(orderInfo);
+        orderDetail.setOrder(order);
 
-        order.setOrderDetails(orderDetails);
+        order.setOrderExecute(orderDetail);
 
         return orderRepository.save(order);
     }
@@ -106,16 +103,8 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    public List<Order> getOrdersByDriver(Driver driver) {
-        return orderRepository.getOrdersByDriver(driver);
-    }
-
-    public boolean isOrderCountMatchedWithRequest(Driver driver, Integer count) {
-        return orderRepository.isOrderCountMatchedWithRequest(driver, count);
-    }
-
-    public List<Order> findByDriverIds(List<Long> driverIds) {
-        return orderRepository.findByDriverIds(driverIds);
+    public List<Order> getOrderByIdIn(List<Long> ids) {
+        return orderRepository.getOrderByIdIn(ids);
     }
 
 }

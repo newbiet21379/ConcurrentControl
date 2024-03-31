@@ -1,5 +1,6 @@
 package com.tim.transactioncase.utils;
 
+import com.tim.transactioncase.common.OrderStatus;
 import com.tim.transactioncase.model.Order;
 import com.tim.transactioncase.model.OrderExecute;
 import com.tim.transactioncase.request.CreateJobFlowRequest;
@@ -17,13 +18,8 @@ public class CreateJobFlowMapper {
     public static Order toOrder(CreateJobFlowRequest createJobRequest) {
         Order order = new Order();
         order.setOrderInfo(createJobRequest.getOrderInfo());
-
-        OrderExecute orderExecute = new OrderExecute();
-        orderExecute.setDetailInfo(createJobRequest.getDetailInfo());
-        orderExecute.setOrder(order);
-
-        order.setOrderDetails(List.of(orderExecute));
-
+        order.setOrderStatus(OrderStatus.CREATED);
+        order.setPresetLine(createJobRequest.getPresetLine());
         return order;
     }
 

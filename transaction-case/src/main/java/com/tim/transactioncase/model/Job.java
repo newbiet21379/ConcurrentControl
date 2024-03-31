@@ -1,5 +1,6 @@
 package com.tim.transactioncase.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.tim.transactioncase.common.JobStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -16,16 +17,19 @@ public class Job {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
-    private String jobInfo;
+    private String presetLine;
     @Enumerated(EnumType.STRING)
     private JobStatus status;
 
-    @OneToOne(cascade = CascadeType.ALL)
+    @ManyToOne
+    @JsonManagedReference
     private Driver driver;
 
-    @OneToMany
+    @OneToMany(mappedBy = "job")
+    @JsonManagedReference
     private List<Order> orders;
 
-    @OneToMany
+    @OneToMany(mappedBy = "job")
+    @JsonManagedReference
     private List<Shipment> shipments;
 }

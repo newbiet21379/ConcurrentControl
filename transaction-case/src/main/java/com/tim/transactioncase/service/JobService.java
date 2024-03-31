@@ -19,5 +19,8 @@ public interface JobService {
 
     Job findJobById(Long jobId);
 
-    public List<Job> createJobNoTransactional(Map<Driver, List<Shipment>> driverListMap, String jobInfo, JobStatus status);
+    Job createJob( List<Order> orders, JobStatus status, List<Shipment> shipments, String presetLine, Driver driver);
+
+    Job confirmJob(Job job);
+
 }
