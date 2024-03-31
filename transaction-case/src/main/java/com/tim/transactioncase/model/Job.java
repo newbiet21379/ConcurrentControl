@@ -17,6 +17,8 @@ public class Job {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
+    @Column(name = "p_id")
+    private Long pId;
     private String presetLine;
     private JobStatus status;
 

@@ -1,5 +1,6 @@
 package com.tim.transactioncase.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.tim.transactioncase.common.OrderStatus;
@@ -17,16 +18,22 @@ public class Order {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
+    @Column(name = "p_id")
+    private Long pId;
     private String orderInfo;
     private OrderStatus orderStatus;
     private String presetLine;
 
     @OneToOne(cascade = CascadeType.ALL, mappedBy="order")
     @JsonManagedReference
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private OrderExecute orderExecute;
 
     @OneToOne
-    @JsonIgnore
+    @JsonBackReference
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Shipment shipment;
 
     @OneToOne
@@ -35,6 +42,6 @@ public class Order {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @ManyToOne
-    @JsonIgnore
+    @JsonBackReference
     private Job job;
 }

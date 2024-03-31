@@ -1,29 +1,26 @@
 package com.tim.transactioncase.service.impl;
 
-import com.tim.transactioncase.common.JobStatus;
-import com.tim.transactioncase.common.OrderStatus;
-import com.tim.transactioncase.common.ShipmentStatus;
-import com.tim.transactioncase.common.TransactionWrapper;
+import com.tim.transactioncase.common.*;
 import com.tim.transactioncase.exception.ResourceNotFoundException;
-import com.tim.transactioncase.model.*;
+import com.tim.transactioncase.model.Driver;
+import com.tim.transactioncase.model.Job;
+import com.tim.transactioncase.model.Order;
+import com.tim.transactioncase.model.Shipment;
 import com.tim.transactioncase.repository.OrderExecuteRepository;
 import com.tim.transactioncase.request.CreateJobFlowRequest;
 import com.tim.transactioncase.request.JobBatchRequest;
 import com.tim.transactioncase.service.*;
 import com.tim.transactioncase.utils.CreateJobFlowMapper;
 import com.tim.transactioncase.utils.ShipmentMapper;
+import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 @Service
 public class JobFlowServiceImpl implements JobFlowService {
@@ -39,15 +36,15 @@ public class JobFlowServiceImpl implements JobFlowService {
 
     private final TransactionWrapper transactionWrapper;
 
-    private final OrderExecuteRepository orderExecuteRepository;
+    private final SequenceService sequenceService;
 
-    public JobFlowServiceImpl(OrderService orderServiceImpl, ShipmentService shipmentServiceImpl, JobService jobServiceImpl, DriverService driverServiceImpl, TransactionWrapper transactionWrapper, OrderExecuteRepository orderExecuteRepository) {
+    public JobFlowServiceImpl(OrderService orderServiceImpl, ShipmentService shipmentServiceImpl, JobService jobServiceImpl, DriverService driverServiceImpl, TransactionWrapper transactionWrapper, OrderExecuteRepository orderExecuteRepository, SequenceService sequenceService) {
         this.orderServiceImpl = orderServiceImpl;
         this.shipmentServiceImpl = shipmentServiceImpl;
         this.jobServiceImpl = jobServiceImpl;
         this.driverServiceImpl = driverServiceImpl;
         this.transactionWrapper = transactionWrapper;
-        this.orderExecuteRepository = orderExecuteRepository;
+        this.sequenceService = sequenceService;
     }
 
     public Integer getCountPresetLine(){
@@ -78,8 +75,15 @@ public class JobFlowServiceImpl implements JobFlowService {
         }
     }
 
+    @SneakyThrows
     public List<Job> createJobFlow(List<CreateJobFlowRequest> createJobRequests) {
         List<Order> orders = CreateJobFlowMapper.toOrderList(createJobRequests);
+        long orderId = sequenceService.getNextSequence(CommonConstants.ORDER_SEQ_NAME,
+                (long) orders.size()).get() - orders.size();
+        for (Order item : orders) {
+            item.setPId(orderId++);
+        }
+
         List<Driver> drivers = getDriversFromList(CreateJobFlowMapper.toDriverIdList(createJobRequests));
         if(ObjectUtils.isEmpty(drivers)) return null;
         orders = orderServiceImpl.saveAll(orders);
@@ -105,17 +109,27 @@ public class JobFlowServiceImpl implements JobFlowService {
         List<Job> jobs = new ArrayList<>(presetLineMap.size());
 
         presetLineMap.forEach((key, value) -> {
-            jobs.add(planJobWithDriver(key, value, lineDriver));
+            Long jobId = planJobWithDriver(key, value, lineDriver);
+            jobs.add(jobServiceImpl.confirmJob(jobId));
         });
         return jobs;
     }
 
-    @Transactional(propagation = Propagation.REQUIRED)
+    @SneakyThrows
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public List<Job> createJobFlowTransaction(JobBatchRequest request) {
         List<Order> orders = CreateJobFlowMapper.toOrderList(request.getJobFlowRequests());
+        long orderId = sequenceService.getNextSequence(CommonConstants.ORDER_SEQ_NAME,
+                (long) orders.size()).get() - orders.size();
+        long orderExecuteId = sequenceService.getNextSequence(CommonConstants.ORDER_EXECUTE_SEQ_NAME,
+                (long) orders.size()).get() - orders.size();
+        for (Order item : orders) {
+            item.setPId(orderId++);
+            item.getOrderExecute().setPId(orderExecuteId++);
+        }
         List<Driver> drivers = getDriversFromList(CreateJobFlowMapper.toDriverIdList(request.getJobFlowRequests()));
         if(ObjectUtils.isEmpty(drivers)) return null;
-        orders = orderServiceImpl.saveAll(orders);
+        orderServiceImpl.saveAll(orders);
         Map<String, List<Order>> presetLineMap = new HashMap<>();
         Map<String, Driver> lineDriver = new HashMap<>();
 
@@ -141,23 +155,28 @@ public class JobFlowServiceImpl implements JobFlowService {
         presetLineMap.forEach((key, value) -> {
             if(request.isAsync()){
                 CompletableFuture.supplyAsync(() -> {
-                    jobs.add(planJobWithDriver(key, value, lineDriver));
+                    Long jobId = planJobWithDriver(key, value, lineDriver);
+                    jobs.add(jobServiceImpl.confirmJob(jobId));
                     return null;
                 });
             }else{
-                jobs.add(planJobWithDriver(key, value, lineDriver));
+                Long jobId = planJobWithDriver(key, value, lineDriver);
+                jobs.add(jobServiceImpl.confirmJob(jobId));
             }
         });
 
         return jobs;
     }
 
-    private Job planJobWithDriver(String key, List<Order> value, Map<String, Driver> lineDriver) {
+    private Long planJobWithDriver(String key, List<Order> value, Map<String, Driver> lineDriver) {
         Driver driver = lineDriver.get(key);
 
         Job job = jobServiceImpl.createJob(value, JobStatus.CREATED, new ArrayList<>(), key, driver);
 
         List<Shipment> shipments = new ArrayList<>();
+        if(!jobServiceImpl.existAllByPIds(Collections.singletonList(job.getPId()))){
+            throw new RuntimeException();
+        }
         for (Order order : value) {
             order.setOrderStatus(OrderStatus.PENDING);
             order.setJob(job);
@@ -175,7 +194,8 @@ public class JobFlowServiceImpl implements JobFlowService {
         }
         job.setShipments(shipments);
         driver.getJobs().add(job);
-        return jobServiceImpl.confirmJob(job);
+        driverServiceImpl.save(driver);
+        return job.getPId();
     }
 
     private Driver getDriverFromJobRequest(CreateJobFlowRequest createJobFlowRequest){

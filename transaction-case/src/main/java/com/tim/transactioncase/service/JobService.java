@@ -19,8 +19,11 @@ public interface JobService {
 
     Job findJobById(Long jobId);
 
+    boolean existAllByPIds(List<Long> jobIds);
+
+
     Job createJob( List<Order> orders, JobStatus status, List<Shipment> shipments, String presetLine, Driver driver);
 
-    Job confirmJob(Job job);
+    Job confirmJob(Long jobId);
 
 }
