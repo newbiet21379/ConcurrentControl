@@ -30,6 +30,7 @@ public class JobFlowController {
         return switch (version) {
             case "v1" -> jobFlowServiceImpl.createJobFlow(request.getJobFlowRequests());
             case "v2" -> jobFlowServiceImpl.createJobFlowTransaction(request);
+            case "v3" -> jobFlowServiceImpl.createJobFlowWithSeparateTransaction(request);
             default -> null;
         };
     }

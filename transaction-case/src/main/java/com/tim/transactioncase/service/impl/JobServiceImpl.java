@@ -13,6 +13,8 @@ import com.tim.transactioncase.repository.ShipmentRepository;
 import com.tim.transactioncase.request.CreateJobFlowRequest;
 import com.tim.transactioncase.service.JobService;
 import lombok.SneakyThrows;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -31,28 +33,38 @@ public class JobServiceImpl implements JobService {
 
     private final OrderRepository orderRepository;
 
+    private final RedissonClient redissonClient;
+
     @Autowired
-    public JobServiceImpl(JobDataRepository jobDataRepository, ShipmentRepository shipmentRepository, SequenceService sequenceService, OrderRepository orderRepository) {
+    public JobServiceImpl(JobDataRepository jobDataRepository, ShipmentRepository shipmentRepository, SequenceService sequenceService, OrderRepository orderRepository, RedissonClient redissonClient) {
         this.jobDataRepository = jobDataRepository;
         this.shipmentRepository = shipmentRepository;
         this.sequenceService = sequenceService;
         this.orderRepository = orderRepository;
+        this.redissonClient = redissonClient;
     }
 
     @SneakyThrows
     public Job createJob(List<Order> orders, JobStatus status, List<Shipment> shipments, String presetLine, Driver driver) {
-        Job job = new Job();
-        job.setStatus(status);
-        job.setPId(sequenceService.getNextSequence(CommonConstants.JOB_SEQ_NAME).get());
-        job.setPresetLine(presetLine);
-        job.setDriver(driver);
-        List<Long> pIds = orders.stream().map(Order::getPId).toList();
+        Long jobId = sequenceService.getNextSequence(CommonConstants.JOB_SEQ_NAME).get();
+        RLock lock = redissonClient.getLock("jobLock" + jobId);
+        lock.lock();
+        try{
+            Job job = new Job();
+            job.setStatus(status);
+            job.setPId(jobId);
+            job.setPresetLine(presetLine);
+            job.setDriver(driver);
+            List<Long> pIds = orders.stream().map(Order::getPId).toList();
 
-        if(!orderRepository.existsAllBypIdIn(pIds)){
-            throw new RuntimeException();
+            if(!orderRepository.existsAllBypIdIn(pIds)){
+                throw new RuntimeException();
+            }
+            job.setOrders(orders);
+            return jobDataRepository.save(job);
+        }finally {
+            lock.unlock();
         }
-        job.setOrders(orders);
-        return jobDataRepository.save(job);
     }
 
     @SneakyThrows
@@ -65,17 +77,23 @@ public class JobServiceImpl implements JobService {
             throw new RuntimeException();
         }
 
-        job.setStatus(JobStatus.PLANNED);
-        List<Shipment> shipments = job.getShipments();
+        RLock lock = redissonClient.getLock("jobLock" + jobId);
+        lock.lock();
+        try{
+            job.setStatus(JobStatus.PLANNED);
+            List<Shipment> shipments = job.getShipments();
 
-        long shipmentId = sequenceService.getNextSequence(CommonConstants.SHIPMENT_SEQ_NAME,
-                (long) shipments.size()).get() - shipments.size();
-        for (Shipment item : shipments) {
-            item.setPId(shipmentId++);
-            item.setStatus(ShipmentStatus.IN_TRANSIT);
+            long shipmentId = sequenceService.getNextSequence(CommonConstants.SHIPMENT_SEQ_NAME,
+                    (long) shipments.size()).get() - shipments.size();
+            for (Shipment item : shipments) {
+                item.setPId(shipmentId++);
+                item.setStatus(ShipmentStatus.IN_TRANSIT);
+            }
+            shipmentRepository.saveAll(shipments);
+            return jobDataRepository.save(job);
+        }finally {
+            lock.unlock();
         }
-        shipmentRepository.saveAll(shipments);
-        return jobDataRepository.save(job);
     }
 
     @Override

@@ -13,6 +13,8 @@ import com.tim.transactioncase.service.*;
 import com.tim.transactioncase.utils.CreateJobFlowMapper;
 import com.tim.transactioncase.utils.ShipmentMapper;
 import lombok.SneakyThrows;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
@@ -21,6 +23,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 @Service
 public class JobFlowServiceImpl implements JobFlowService {
@@ -38,7 +41,7 @@ public class JobFlowServiceImpl implements JobFlowService {
 
     private final SequenceService sequenceService;
 
-    public JobFlowServiceImpl(OrderService orderServiceImpl, ShipmentService shipmentServiceImpl, JobService jobServiceImpl, DriverService driverServiceImpl, TransactionWrapper transactionWrapper, OrderExecuteRepository orderExecuteRepository, SequenceService sequenceService) {
+    public JobFlowServiceImpl(OrderService orderServiceImpl, ShipmentService shipmentServiceImpl, JobService jobServiceImpl, DriverService driverServiceImpl, TransactionWrapper transactionWrapper, OrderExecuteRepository orderExecuteRepository, SequenceService sequenceService, RedissonClient redissonClient) {
         this.orderServiceImpl = orderServiceImpl;
         this.shipmentServiceImpl = shipmentServiceImpl;
         this.jobServiceImpl = jobServiceImpl;
@@ -157,6 +160,71 @@ public class JobFlowServiceImpl implements JobFlowService {
                 CompletableFuture.supplyAsync(() -> {
                     Long jobId = planJobWithDriver(key, value, lineDriver);
                     jobs.add(jobServiceImpl.confirmJob(jobId));
+                    return null;
+                });
+            }else{
+                Long jobId = planJobWithDriver(key, value, lineDriver);
+                jobs.add(jobServiceImpl.confirmJob(jobId));
+            }
+        });
+
+        return jobs;
+    }
+
+    @SneakyThrows
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public List<Job> createJobFlowWithSeparateTransaction(JobBatchRequest request) {
+        List<Order> orders = CreateJobFlowMapper.toOrderList(request.getJobFlowRequests());
+        List<Order> finalOrders = orders;
+        orders = transactionWrapper.doInNewTransaction(() -> {
+            long orderId;
+            try {
+                orderId = sequenceService.getNextSequence(CommonConstants.ORDER_SEQ_NAME,
+                        (long) finalOrders.size()).get() - finalOrders.size();
+
+                long orderExecuteId = sequenceService.getNextSequence(CommonConstants.ORDER_EXECUTE_SEQ_NAME,
+                        (long) finalOrders.size()).get() - finalOrders.size();
+                for (Order item : finalOrders) {
+                    item.setPId(orderId++);
+                    item.getOrderExecute().setPId(orderExecuteId++);
+                }
+                List<Driver> drivers = getDriversFromList(CreateJobFlowMapper.toDriverIdList(request.getJobFlowRequests()));
+                if(ObjectUtils.isEmpty(drivers)) return null;
+                orderServiceImpl.saveAll(finalOrders);
+                return finalOrders;
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        Map<String, List<Order>> presetLineMap = new HashMap<>();
+        Map<String, Driver> lineDriver = new HashMap<>();
+
+        for (Order order : orders) {
+            String presetLine = ObjectUtils.isEmpty(order.getPresetLine()) ? String.valueOf(getCountPresetLine()) : order.getPresetLine();
+            if (ObjectUtils.isEmpty(presetLineMap.get(presetLine))) {
+                List<Order> orderList = new ArrayList<>();
+                orderList.add(order);
+                presetLineMap.put(presetLine, orderList);
+            } else {
+                presetLineMap.get(presetLine).add(order);
+            }
+        }
+
+        for (CreateJobFlowRequest jobFlowRequest : request.getJobFlowRequests()) {
+            String presetLine = ObjectUtils.isEmpty(jobFlowRequest.getPresetLine()) ? String.valueOf(getCountPresetLine()) : jobFlowRequest.getPresetLine();
+            Driver driver = getDriverFromJobRequest(jobFlowRequest);
+            lineDriver.put(presetLine, driver);
+        }
+
+        List<Job> jobs = new ArrayList<>(presetLineMap.size());
+
+        presetLineMap.forEach((key, value) -> {
+            if(request.isAsync()){
+                CompletableFuture.supplyAsync(() -> {
+                    Long jobId = transactionWrapper.doInSameTransaction(() -> planJobWithDriver(key, value, lineDriver));
+                    Job job = transactionWrapper.doInSameTransaction(() -> jobServiceImpl.confirmJob(jobId));
+                    jobs.add(job);
                     return null;
                 });
             }else{

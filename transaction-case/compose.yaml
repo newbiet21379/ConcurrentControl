@@ -14,5 +14,9 @@ services:
       - "5432:5432"  # This enables connections via localhost:5432
   redis:
     image: "redis:alpine"
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - ./data/redis:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
     ports:
       - "6379:6379"
