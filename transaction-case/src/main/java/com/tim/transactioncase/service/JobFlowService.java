@@ -13,6 +13,8 @@ public interface JobFlowService {
 
     List<Job> createJobFlow(List<CreateJobFlowRequest> requests);
     List<Job> createJobFlowTransaction(JobBatchRequest request);
+
+    List<Job> createJobFlowWithSeparateTransaction(JobBatchRequest request);
     void updateJobStatusNormalFlow(Long jobId, JobStatus status);
 
     void updateJobStatusV2(Long jobId, JobStatus status);
