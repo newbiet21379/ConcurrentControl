@@ -8,4 +8,8 @@ import java.util.List;
 
 public interface JobDataRepository extends JpaRepository<Job, Long> {
     List<Job> findAllByStatusIn(List<JobStatus> statuses);
+
+    Job findBypId(Long pId);
+
+    boolean existsAllBypIdIn(List<Long> pIds);
 }

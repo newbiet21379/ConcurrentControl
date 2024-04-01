@@ -1,10 +1,14 @@
 package com.tim.transactioncase.service.impl;
 
+import com.tim.transactioncase.common.CommonConstants;
+import com.tim.transactioncase.model.Driver;
 import com.tim.transactioncase.model.OrderExecute;
+import com.tim.transactioncase.repository.OrderExecuteRepository;
 import com.tim.transactioncase.repository.OrderRepository;
 import com.tim.transactioncase.request.OrderRequest;
 import com.tim.transactioncase.service.OrderService;
 import com.tim.transactioncase.service.OrderValidator;
+import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
 import com.tim.transactioncase.model.Order;
 import org.springframework.transaction.annotation.Isolation;
@@ -20,28 +24,35 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
 
-    public OrderServiceImpl(OrderRepository orderRepository) {
+    private final OrderExecuteRepository orderExecuteRepository;
+
+    private final SequenceService sequenceService;
+
+    public OrderServiceImpl(OrderRepository orderRepository, OrderExecuteRepository orderExecuteRepository, SequenceService sequenceService) {
         this.orderRepository = orderRepository;
+        this.orderExecuteRepository = orderExecuteRepository;
+        this.sequenceService = sequenceService;
     }
 
+    @SneakyThrows
     public Order createOrder(String orderInfo, List<String> details) {
         Order order = new Order();
         order.setOrderInfo(orderInfo);
 
-        List<OrderExecute> orderDetails = details.stream().map(detail -> {
-            OrderExecute orderDetail = new OrderExecute();
-            orderDetail.setDetailInfo(detail);
-            orderDetail.setOrder(order);
-            return orderDetail;
-        }).collect(Collectors.toList());
-
-        order.setOrderDetails(orderDetails);
-
+        OrderExecute orderDetail = new OrderExecute();
+        orderDetail.setDetailInfo(orderInfo);
+        orderDetail.setPId(sequenceService.getNextSequence(CommonConstants.ORDER_EXECUTE_SEQ_NAME).get());
+        orderDetail.setOrder(order);
+        orderExecuteRepository.save(orderDetail);
+        order.setOrderExecute(orderDetail);
         return orderRepository.save(order);
     }
 
     public Order save(Order order) {
         return orderRepository.save(order);
+    }
+    public List<Order> saveAll(List<Order> order) {
+        return orderRepository.saveAll(order);
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -97,10 +108,13 @@ public class OrderServiceImpl implements OrderService {
             newOrders.add(order);
         }
 
-        // If we've gotten to here, it means all orders were valid. Proceed with saving them.
         for (Order order : newOrders) {
             save(order);
         }
+    }
+
+    public List<Order> getOrderByIdIn(List<Long> ids) {
+        return orderRepository.getOrderByIdIn(ids);
     }
 
 }

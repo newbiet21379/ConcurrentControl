@@ -9,6 +9,8 @@ import com.tim.transactioncase.service.ShipmentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class ShipmentServiceImpl implements ShipmentService {
     private final ShipmentRepository shipmentRepository;
@@ -18,14 +20,21 @@ public class ShipmentServiceImpl implements ShipmentService {
         this.shipmentRepository = shipmentRepository;
     }
 
-    public Shipment createShipment(String shipmentInfo, Order order, Driver driver, ShipmentStatus status) {
+    public Shipment createShipment(String shipmentInfo, Order order, ShipmentStatus status) {
         Shipment shipment = new Shipment();
         shipment.setShipmentInfo(shipmentInfo);
         shipment.setOrder(order);
         shipment.setStatus(status);
-        shipment.setDriver(driver);
 
         return shipmentRepository.save(shipment);
+    }
+    public Shipment save(Shipment shipments) {
+        return shipmentRepository.save(shipments);
+    }
+
+
+    public List<Shipment> saveAll(List<Shipment> shipments) {
+        return shipmentRepository.saveAll(shipments);
     }
 
     // Update function based on shipmentId

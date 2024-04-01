@@ -1,27 +1,36 @@
 package com.tim.transactioncase.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.tim.transactioncase.common.JobStatus;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 
 @Entity
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class Job {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
-    private String jobInfo;
-    @Enumerated(EnumType.STRING)
+    @Column(name = "p_id")
+    private Long pId;
+    private String presetLine;
     private JobStatus status;
 
-    @OneToOne
+    @ManyToOne
+    @JsonManagedReference
     private Driver driver;
 
-    @OneToMany
+    @OneToMany(mappedBy = "job")
+    @JsonManagedReference
     private List<Order> orders;
 
-    @OneToMany
+    @OneToMany(mappedBy = "job")
+    @JsonManagedReference
     private List<Shipment> shipments;
 }

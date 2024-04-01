@@ -1,9 +1,7 @@
 package com.tim.transactioncase.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
 import lombok.Data;
 
 @Entity
@@ -13,4 +11,8 @@ public class Vehicle {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
     private String model;
+
+    @OneToOne(cascade = CascadeType.ALL)
+    @JsonIgnore
+    private Order order;
 }

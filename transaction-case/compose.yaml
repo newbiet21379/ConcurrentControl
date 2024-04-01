@@ -12,3 +12,7 @@ services:
       - ./data/db:/var/lib/postgresql/data:Z  # Adjust this as per your specific directory structure
     ports:
       - "5432:5432"  # This enables connections via localhost:5432
+  redis:
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"

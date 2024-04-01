@@ -1,9 +1,6 @@
 package com.tim.transactioncase.common;
 
-import lombok.Getter;
-
-@Getter
-public enum ShipmentStatus {
+public enum OrderStatus {
     CREATED,
     PENDING,
     IN_TRANSIT,
