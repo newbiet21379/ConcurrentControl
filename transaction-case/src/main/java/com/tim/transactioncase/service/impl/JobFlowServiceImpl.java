@@ -79,7 +79,8 @@ public class JobFlowServiceImpl implements JobFlowService {
     }
 
     @SneakyThrows
-    public List<Job> createJobFlow(List<CreateJobFlowRequest> createJobRequests) {
+    public List<Job> createJobFlow(JobBatchRequest request) {
+        List<CreateJobFlowRequest> createJobRequests = request.getJobFlowRequests();
         List<Order> orders = CreateJobFlowMapper.toOrderList(createJobRequests);
         long orderId = sequenceService.getNextSequence(CommonConstants.ORDER_SEQ_NAME,
                 (long) orders.size()).get() - orders.size();
@@ -159,7 +160,7 @@ public class JobFlowServiceImpl implements JobFlowService {
             if(request.isAsync()){
                 CompletableFuture.supplyAsync(() -> {
                     Long jobId = planJobWithDriver(key, value, lineDriver);
-                    jobs.add(jobServiceImpl.confirmJob(jobId));
+                    jobServiceImpl.confirmJob(jobId);
                     return null;
                 });
             }else{
@@ -190,8 +191,7 @@ public class JobFlowServiceImpl implements JobFlowService {
                 }
                 List<Driver> drivers = getDriversFromList(CreateJobFlowMapper.toDriverIdList(request.getJobFlowRequests()));
                 if(ObjectUtils.isEmpty(drivers)) return null;
-                orderServiceImpl.saveAll(finalOrders);
-                return finalOrders;
+                return orderServiceImpl.saveAll(finalOrders);
             } catch (InterruptedException | ExecutionException e) {
                 throw new RuntimeException(e);
             }
@@ -223,8 +223,7 @@ public class JobFlowServiceImpl implements JobFlowService {
             if(request.isAsync()){
                 CompletableFuture.supplyAsync(() -> {
                     Long jobId = transactionWrapper.doInSameTransaction(() -> planJobWithDriver(key, value, lineDriver));
-                    Job job = transactionWrapper.doInSameTransaction(() -> jobServiceImpl.confirmJob(jobId));
-                    jobs.add(job);
+                    transactionWrapper.doInSameTransaction(() -> jobServiceImpl.confirmJob(jobId));
                     return null;
                 });
             }else{
@@ -250,7 +249,9 @@ public class JobFlowServiceImpl implements JobFlowService {
             order.setJob(job);
             Shipment shipment = ShipmentMapper.toShipment(order, driver, ShipmentStatus.PENDING);
             shipment.setJob(job);
+            order = orderServiceImpl.save(order);
             order.setShipment(shipment);
+            shipment.setOrder(order);
             shipments.add(shipmentServiceImpl.save(shipment));
         }
 

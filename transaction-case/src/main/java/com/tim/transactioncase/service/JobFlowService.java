@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface JobFlowService {
 
-    List<Job> createJobFlow(List<CreateJobFlowRequest> requests);
+    List<Job> createJobFlow(JobBatchRequest request);
     List<Job> createJobFlowTransaction(JobBatchRequest request);
 
     List<Job> createJobFlowWithSeparateTransaction(JobBatchRequest request);

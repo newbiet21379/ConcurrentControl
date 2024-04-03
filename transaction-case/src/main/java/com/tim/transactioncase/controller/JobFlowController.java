@@ -28,7 +28,7 @@ public class JobFlowController {
     @PostMapping("/create")
     public List<Job> createJobFlow(@RequestBody JobBatchRequest request, @PathVariable("version") String version) {
         return switch (version) {
-            case "v1" -> jobFlowServiceImpl.createJobFlow(request.getJobFlowRequests());
+            case "v1" -> jobFlowServiceImpl.createJobFlow(request);
             case "v2" -> jobFlowServiceImpl.createJobFlowTransaction(request);
             case "v3" -> jobFlowServiceImpl.createJobFlowWithSeparateTransaction(request);
             default -> null;
